@@ -1,0 +1,40 @@
+{
+  "name": "y-redis",
+  "version": "0.0.0",
+  "description": "Redis persistence layer for Yjs",
+  "main": "src/y-redis.js",
+  "scripts": {
+    "test": "npm run lint",
+    "lint": "standard"
+  },
+  "files": [
+    "src/y-redis.js"
+  ],
+  "standard": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/y-js/y-redis"
+  },
+  "keywords": [
+    "Yjs",
+    "OT",
+    "Collaboration",
+    "Synchronization",
+    "ShareJS",
+    "Coweb",
+    "Concurrency"
+  ],
+  "author": "Kevin Jahns <kevin.jahns@rwth-aachen.de>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/y-js/y-redis/issues"
+  },
+  "homepage": "http://y-js.org",
+  "devDependencies": {
+    "standard": "^10.0.2"
+  },
+  "peerDependencies": {
+    "yjs": ">=13.0.0-0 <14.0.0",
+    "redis": "^2.8.0"
+  }
+}
