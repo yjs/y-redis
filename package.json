@@ -2,14 +2,11 @@
   "name": "y-redis",
   "version": "0.0.1",
   "description": "Redis persistence layer for Yjs",
-  "main": "src/y-redis.js",
+  "main": "./src/y-redis.js",
   "scripts": {
     "test": "npm run lint",
     "lint": "standard"
   },
-  "files": [
-    "src/y-redis.js"
-  ],
   "standard": {},
   "repository": {
     "type": "git",
@@ -34,7 +31,9 @@
     "standard": "^10.0.2"
   },
   "peerDependencies": {
-    "yjs": ">=13.0.0-0 <14.0.0",
+    "yjs": "^13.0.0-23"
+  },
+  "dependencies": {
     "redis": "^2.8.0"
   }
 }

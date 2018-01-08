@@ -1,58 +1,90 @@
 
 /*
- * TODO:
- *  * When applying an update (connector.receiveMessage) you must make sure that the update is not sent back to redis!
- *    - only computational overhead currently
- *    - this will be possible when applying an operation is synchronous
- *
+ * TODO: When applying an update (connector.receiveMessage) I have to make sure
+ *       that the update is not sent back to redis
  */
 
-const PREFERRED_TRIM_SIZE = 300
-
-const redisInstances = new Map()
-
-// messages , message, room
-let saveMessageCommandSha = null
-const saveMessageCommand = `
--- [[ messages , message, room ]]
+/**
+ * Save an update to redis
+ */
+let saveUpdateCommandSha = null
+const saveUpdateCommand = `
+-- [[ room:updates room:contentClock , update incrementContentClock ]]
 redis.call("RPUSH", KEYS[1], ARGV[1])
-redis.call("PUBLISH", ARGV[2], ARGV[1])
+if ARGV[2] == "true" then
+  redis.call("INCR", KEYS[2])
+end
+-- redis.call("PUBLISH", ARGV[2], ARGV[1])
 `
 
-// messageCounter messages yjsModel , newCount yjsModel
+/**
+ * Save the model to Redis.
+ * * Deletes all known updates from the updates queue in redis
+ * * increases counter based on local counter information
+ */
 let saveYjsModelSha = null
 const saveYjsModel = `
--- [[ messageCounter messages yjsModel , newCount yjsModel ]]
+-- [[ room:counter room:updates room:model room:extra, newCount yjsModel extra]]
 local cnt = 0
 if (redis.call("EXISTS", KEYS[1]) == 1) then
   cnt = tonumber(redis.call("GET", KEYS[1]))
 end
 local del = tonumber(ARGV[1]) - cnt
 if del > 0 then
-  redis.call("SET", KEYS[3], ARGV[2])
-  redis.call("SET", KEYS[1], ARGV[1])
+  redis.call("SET", KEYS[1], tonumber(ARGV[1]))
   redis.call("LTRIM", KEYS[2], del, -1)
+  redis.call("SET", KEYS[3], ARGV[2])
+  if (ARGV[3] ~= nil) then
+    redis.call("SET", KEYS[4], ARGV[3])
+  end
 end
+`
+
+/**
+ * Based on the given counter information, retrieve all missing updates.
+ */
+let getRemainingUpdatesSha = null
+const getRemainingUpdates = `
+-- [[ room:counter room:updates room:contentClock room:extra, count ]]
+local count = tonumber(ARGV[1])
+local contentClock = 0
+if (redis.call("EXISTS", KEYS[1]) == 1) then
+  count = count - tonumber(redis.call("GET", KEYS[1]))
+end
+if (redis.call("EXISTS", KEYS[3]) == 1) then
+  contentClock = redis.call("GET", KEYS[3])
+end
+return { redis.call("LRANGE", KEYS[2], count, -1), contentClock, redis.call("GET", KEYS[4]) }
 `
 
 function registerScripts (redis) {
   return Promise.all([
     new Promise((resolve, reject) => {
-      redis.send_command('SCRIPT', ['LOAD', saveMessageCommand], function (err, sha) {
-        if (err != null) {
+      redis.send_command('SCRIPT', ['LOAD', saveUpdateCommand], function (err, sha) {
+        if (err !== null) {
           reject(err)
         } else {
-          saveMessageCommandSha = sha
+          saveUpdateCommandSha = sha
           resolve()
         }
       })
     }),
     new Promise((resolve, reject) => {
       redis.send_command('SCRIPT', ['LOAD', saveYjsModel], function (err, sha) {
-        if (err != null) {
+        if (err !== null) {
           reject(err)
         } else {
           saveYjsModelSha = sha
+          resolve()
+        }
+      })
+    }),
+    new Promise((resolve, reject) => {
+      redis.send_command('SCRIPT', ['LOAD', getRemainingUpdates], function (err, sha) {
+        if (err !== null) {
+          reject(err)
+        } else {
+          getRemainingUpdatesSha = sha
           resolve()
         }
       })
@@ -60,6 +92,155 @@ function registerScripts (redis) {
   ])
 }
 
+const redis = require('redis')
+
+function extendRedisPersistence (Y) {
+  /**
+   * YRedis Persistence
+   * This Persistence Object can handle multiple Yjs instances.
+   */
+  class YRedisPersistence extends Y.AbstractPersistence {
+    /**
+     * contentCheck is a function that checks if the content changed
+     * If contentCheck is defined, room:contentClock will be increased when new
+     * content is persisted to the database and contentCheck returns true
+     */
+    constructor (redisURL, contentCheck) {
+      super()
+      this.contentCheck = contentCheck || function () { return false }
+      this.contentClock = 0
+      this.redisClient = redis.createClient(redisURL, {
+        return_buffers: true
+      })
+      registerScripts(this.redisClient)
+    }
+
+    /**
+     * Initialize the data that belongs to a Yjs instance.
+     */
+    init (y) {
+      let state = this.ys.get(y)
+      state.counter = 0
+    }
+
+    /**
+     * Remove all data that belongs to a Yjs instance.
+     */
+    deinit (y) {
+      super.deinit(y)
+    }
+
+    /**
+     * Disconnect from the Redis Store.
+     * Need to be called to that the program can exit.
+     */
+    destroy () {
+      this.redisClient.unref()
+    }
+
+    /**
+     * The Yjs instance has been modified, save the updates to the redis store.
+     * This method is called after each transaction.
+     */
+    saveUpdate (y, update, transaction) {
+      const incrementContentClock = this.contentCheck(y, transaction)
+      if (incrementContentClock) {
+        this.contentClock++
+      }
+      this.redisClient.send_command('EVALSHA', [saveUpdateCommandSha, 2, y.room + ':updates', y.room + ':contentClock', Buffer.from(update), incrementContentClock ? 'true' : 'false'], function (err) {
+        if (err !== null) {
+          throw err
+        }
+      })
+    }
+
+    /**
+     * Retrieve the binary representation of the model and all unapplied updates
+     * from the redis database. Then read the binary representation and apply
+     * the updates.
+     */
+    retrieve (y) {
+      const room = y.room
+      const state = this.ys.get(y)
+      return new Promise((resolve, reject) => {
+        if (state.counter === 0) {
+          // retrieve initial model
+          this.redisClient.multi()
+            .get(room + ':model')
+            .lrange(room + ':updates', 0, -1)
+            .get(room + ':counter')
+            .get(room + ':extra')
+            .get(room + ':contentClock')
+            .exec((err, [model, updates, counter, extra, contentClock]) => {
+              if (err !== null) {
+                reject(err)
+                return
+              }
+              contentClock = contentClock || '0'
+              updates = updates || []
+              if (counter === null) {
+                state.counter = updates.length
+              } else {
+                state.counter = Number.parseInt(counter + '') + updates.length
+              }
+              super.retrieve(y, model, updates)
+              this.contentClock = Number.parseInt(contentClock.toString())
+              resolve({
+                extra: extra.toString(),
+                contentClock: this.contentClock
+              })
+            })
+        } else {
+          // only retrieve missing updates
+          this.redisClient.send_command('EVALSHA', [getRemainingUpdatesSha, 4, room + ':counter', room + ':updates', room + ':contentClock', room + ':extra', state.counter], (err, [updates, contentClock, extra]) => {
+            if (err !== null) {
+              reject(err)
+              return
+            }
+            // increase known updates counter
+            state.counter += updates.length
+            // apply updates
+            super.retrieve(y, null, updates)
+            this.contentClock = Number.parseInt(contentClock.toString())
+            resolve({
+              extra: extra.toString(),
+              contentClock: this.contentClock
+            })
+          })
+        }
+      })
+    }
+
+    /**
+     * Save the binary representation of the shared data.
+     */
+    persist (y, extra) {
+      const state = this.ys.get(y)
+      return new Promise((resolve, reject) => {
+        const room = y.room
+        // save model and delete known updates
+        const binaryModel = Buffer.from(super.persist(y))
+        const args = [saveYjsModelSha, 4, room + ':counter', room + ':updates', room + ':model', room + ':extra', state.counter, binaryModel]
+        if (extra !== undefined) {
+          args.push(extra)
+        }
+        this.redisClient.send_command('EVALSHA', args, (err, res) => {
+          if (err !== null) {
+            reject(err)
+          } else {
+            resolve()
+          }
+        })
+      })
+    }
+  }
+
+  return YRedisPersistence
+}
+
+module.exports = extendRedisPersistence
+
+/*
 function registerPersistenceToPubSub (persistence) {
   let redis = persistence.redis
   if (!redisInstances.has(redis)) {
@@ -114,133 +295,4 @@ function unregisterPersitenceFromPubSub (persistence) {
   // room is deleted from rooms in "unsubscribed" event
   return persistence.unsubscribedPromise
 }
-
-function extendRedisPersistence (Y) {
-  class RedisPersistence extends Y.AbstractPersistence {
-    constructor (y, opts) {
-      super(y, opts)
-      this.subscribedPromise = new Promise(resolve => { this._subscribeDefer = resolve })
-      this.unsubscribedPromise = new Promise(resolve => { this._unsubscribeDefer = resolve })
-      // saves the amount of stored messages before calling persistDB
-      this.saveMessageCounter = 0
-      this.persistingDatabase = false
-      // The initial content has been retrieved from the database
-      this.computedInitialContent = false
-      this.bufferedMessagesBeforeInitialContent = []
-      this.redis = opts.redis
-      this.redisPubSub = opts.redisPubSub
-      this.sendMessagesToRedis = true
-    }
-
-    blockSendToRedis (f) {
-      let tmp = this.sendMessagesToRedis
-      this.sendMessagesToRedis = false
-      f()
-      this.sendMessagesToRedis = tmp
-    }
-    destroy () {
-      return this.persistDB().then(() => {
-        clearInterval(this.updateIntervalHandler)
-        return unregisterPersitenceFromPubSub(this)
-      }).then(() => {
-        this.redis = null
-        this.opts = null
-      })
-    }
-
-    receiveMessageFromRedis (message) {
-      if (this.computedInitialContent) {
-        this.blockSendToRedis(() => {
-          this.mcount++
-          this.y.connector.receiveMessage('redis', message, true)
-        })
-      } else {
-        this.bufferedMessagesBeforeInitialContent.push(message)
-      }
-    }
-
-    saveToMessageQueue (message) {
-      let room = this.y.options.connector.room
-      this.redis.send_command('EVALSHA', [saveMessageCommandSha, 1, room + ':messages', Buffer.from(message), room])
-      this.saveMessageCounter++
-      super.saveToMessageQueue(message)
-      if (this.saveMessageCounter >= PREFERRED_TRIM_SIZE) {
-        this.persistDB()
-      }
-    }
-
-    saveOperations (ops) {
-      if (this.sendMessagesToRedis) {
-        super.saveOperations(ops)
-      }
-    }
-
-    retrieveContent () {
-      return registerPersistenceToPubSub(this).then(() => new Promise((resolve, reject) => {
-        let room = this.y.options.connector.room
-        this.redis.multi()
-          .get(room + ':model')
-          .lrange(room + ':messages', 0, -1)
-          .get(room + ':mcount')
-          .exec((err, [model, messages, mcount]) => {
-            if (err != null) {
-              reject(err)
-              return
-            }
-            messages = messages || []
-            this.log('Room %s: Retrieved database content. mcount: %s, messages: %s', room, mcount, messages.length)
-            if (model != null) {
-              this.y.db.requestTransaction(function * () {
-                yield * this.fromBinary(model)
-              })
-            }
-            this.mcount = mcount || 0
-
-            let missingMessages = this.bufferedMessagesBeforeInitialContent.filter(bm => !messages.some(m => Buffer.compare(bm, m)))
-            messages = messages.concat(missingMessages)
-            this.bufferedMessagesBeforeInitialContent = null
-            this.blockSendToRedis(() => {
-              messages.forEach(m => {
-                this.y.connector.receiveMessage('redis', m, true)
-                this.mcount++
-              })
-            })
-            this.computedInitialContent = true
-            let msize = messages.length
-            this.y.db.whenTransactionsFinished().then(() => {
-              if (msize >= PREFERRED_TRIM_SIZE) {
-                this.persistDB()
-              }
-              resolve()
-            })
-          })
-      }))
-    }
-
-    persistDB () {
-      if (!this.computedInitialContent) {
-        return Promise.reject(new Error('Unable to persistDB(). The content is not yet initialized via retrieveContent!'))
-      }
-      this.log('Room %s: Persisting Yjs model to Redis', this.y.options.connector.room)
-      this.saveMessageCounter = 0
-      return new Promise((resolve) => {
-        this.y.db.requestTransaction(function * () {
-          let buffer = yield * this.toBinary()
-          resolve(Buffer.from(buffer))
-        })
-      }).then(buffer => new Promise((resolve, reject) => {
-        let room = this.y.options.connector.room
-        this.redis.send_command('EVALSHA', [saveYjsModelSha, 3, room + ':mcount', room + ':messages', room + ':model', this.mcount, buffer], (err, res) => {
-          if (err != null) {
-            reject(err)
-          } else {
-            resolve()
-          }
-        })
-      }))
-    }
-  }
-  Y.extend('redis', RedisPersistence)
-}
-
-module.exports = extendRedisPersistence
+*/
