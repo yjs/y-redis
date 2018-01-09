@@ -171,7 +171,6 @@ function extendRedisPersistence (Y) {
       const room = y.room
       const state = this.ys.get(y)
       return new Promise((resolve, reject) => {
-        let extra
         if (state.counter === 0) {
           // retrieve initial model
           this.redisClient.multi()
