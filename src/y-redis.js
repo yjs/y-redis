@@ -121,6 +121,7 @@ function extendRedisPersistence (Y) {
       let state = this.ys.get(y)
       state.counter = 0
       state.contentClock = 0
+      return Promise.resolve()
     }
 
     /**
@@ -143,6 +144,32 @@ function extendRedisPersistence (Y) {
       const state = this.ys.get(y)
       this.redisClient.send_command('INCR', [y.room + ':contentClock'])
       return ++state.contentClock
+    }
+
+    /**
+     * Remove all persisted data that belongs to a room.
+     * Automatically destroys all Yjs all Yjs instances that persist to
+     * the room. If `destroyYjsInstances = false` the persistence functionality
+     * will be removed from the Yjs instances.
+     */
+    removePersistedData (room, destroyYjsInstances = true) {
+      super.removePersistedData(room, destroyYjsInstances)
+      return new Promise((resolve, reject) => {
+        this.redisClient.send_command('DEL', [
+          room + ':model',
+          room + ':counter',
+          room + ':updates',
+          room + ':contentClock',
+          room + ':extra',
+          room + ':lastWriteToNoteStore'
+        ], function (err) {
+          if (err !== null) {
+            reject(err)
+          } else {
+            resolve()
+          }
+        })
+      })
     }
 
     /**
