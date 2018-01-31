@@ -31,7 +31,7 @@
     "standard": "^10.0.2"
   },
   "peerDependencies": {
-    "yjs": "^13.0.0-23"
+    "yjs": "^13.0.0-50"
   },
   "dependencies": {
     "redis": "^2.8.0"

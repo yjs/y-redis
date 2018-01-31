@@ -198,28 +198,78 @@ function extendRedisPersistence (Y) {
       const room = y.room
       const state = this.ys.get(y)
       return new Promise((resolve, reject) => {
-        if (state.counter === 0) {
-          // retrieve initial model
-          this.redisClient.multi()
-            .get(room + ':model')
-            .lrange(room + ':updates', 0, -1)
-            .get(room + ':counter')
-            .get(room + ':extra')
-            .get(room + ':contentClock')
-            .exec((err, [model, updates, counter, extra, contentClock]) => {
+        this.redisClient.send_command('EXISTS', [
+          // y.room + ':model', // TODO: modify as soon as we persist data
+          y.room + ':updates'
+          // y.room + ':counter',
+          // y.room + ':extra'
+        ], (err, result) => {
+          if (err !== null) {
+            reject(err)
+            return
+          }
+          // if not all keys exist, remove all keys and start fresh
+          if (result !== 1) {
+            this.redisClient.send_command('DEL', [
+              room + ':model',
+              room + ':counter',
+              room + ':updates',
+              room + ':contentClock',
+              room + ':extra',
+              room + ':lastWriteToNoteStore'
+            ], function (err) {
+              if (err !== null) {
+                reject(err)
+              } else {
+                resolve()
+              }
+            })
+            return
+          }
+          if (state.counter === 0) {
+            // starting with empty model
+            // retrieve initial model
+            this.redisClient.multi()
+              .get(room + ':model')
+              .lrange(room + ':updates', 0, -1)
+              .get(room + ':counter')
+              .get(room + ':extra')
+              .get(room + ':contentClock')
+              .exec((err, [model, updates, counter, extra, contentClock]) => {
+                if (err !== null) {
+                  reject(err)
+                  return
+                }
+                contentClock = contentClock || '0'
+                updates = updates || []
+                extra = extra ? extra.toString() : null
+                if (counter === null) {
+                  state.counter = updates.length
+                } else {
+                  state.counter = Number.parseInt(counter + '') + updates.length
+                }
+                super.retrieve(y, model, updates)
+                state.contentClock = Number.parseInt(contentClock.toString())
+                const result = {
+                  extra: extra,
+                  contentClock: state.contentClock
+                }
+                y.emit('redis-content-retrieved', result)
+                resolve(result)
+              })
+          } else {
+            // starting with existing model
+            // only retrieve missing updates
+            this.redisClient.send_command('EVALSHA', [getRemainingUpdatesSha, 4, room + ':counter', room + ':updates', room + ':contentClock', room + ':extra', state.counter], (err, [updates, contentClock, extra]) => {
               if (err !== null) {
                 reject(err)
                 return
               }
-              contentClock = contentClock || '0'
-              updates = updates || []
               extra = extra ? extra.toString() : null
-              if (counter === null) {
-                state.counter = updates.length
-              } else {
-                state.counter = Number.parseInt(counter + '') + updates.length
-              }
-              super.retrieve(y, model, updates)
+              // increase known updates counter
+              state.counter += updates.length
+              // apply updates
+              super.retrieve(y, null, updates)
               state.contentClock = Number.parseInt(contentClock.toString())
               const result = {
                 extra: extra,
@@ -228,43 +278,21 @@ function extendRedisPersistence (Y) {
               y.emit('redis-content-retrieved', result)
               resolve(result)
             })
-        } else {
-          // only retrieve missing updates
-          this.redisClient.send_command('EVALSHA', [getRemainingUpdatesSha, 4, room + ':counter', room + ':updates', room + ':contentClock', room + ':extra', state.counter], (err, [updates, contentClock, extra]) => {
-            if (err !== null) {
-              reject(err)
-              return
-            }
-            extra = extra ? extra.toString() : null
-            // increase known updates counter
-            state.counter += updates.length
-            // apply updates
-            super.retrieve(y, null, updates)
-            state.contentClock = Number.parseInt(contentClock.toString())
-            const result = {
-              extra: extra,
-              contentClock: state.contentClock
-            }
-            y.emit('redis-content-retrieved', result)
-            resolve(result)
-          })
-        }
+          }
+        })
       })
     }
 
     /**
      * Save the binary representation of the shared data.
      */
-    persist (y, extra) {
+    persist (y, extra = '') {
       const state = this.ys.get(y)
       return new Promise((resolve, reject) => {
         const room = y.room
         // save model and delete known updates
         const binaryModel = Buffer.from(super.persist(y))
-        const args = [saveYjsModelSha, 4, room + ':counter', room + ':updates', room + ':model', room + ':extra', state.counter, binaryModel]
-        if (extra !== undefined) {
-          args.push(extra)
-        }
+        const args = [saveYjsModelSha, 4, room + ':counter', room + ':updates', room + ':model', room + ':extra', state.counter, binaryModel, extra]
         this.redisClient.send_command('EVALSHA', args, (err, res) => {
           if (err !== null) {
             reject(err)
