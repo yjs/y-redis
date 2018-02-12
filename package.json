@@ -1,6 +1,6 @@
 {
   "name": "y-redis",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Redis persistence layer for Yjs",
   "main": "./src/y-redis.js",
   "scripts": {
