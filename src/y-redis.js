@@ -111,7 +111,11 @@ function extendRedisPersistence (Y) {
       this.redisClient = redis.createClient(redisURL, {
         return_buffers: true
       })
-      registerScripts(this.redisClient)
+      const scriptsRegistered = registerScripts(this.redisClient)
+      const redisReady = new Promise(resolve => {
+        this.redisClient.once('ready', resolve)
+      })
+      this._readyPromise = Promise.all([redisReady, scriptsRegistered])
     }
 
     /**
@@ -121,7 +125,7 @@ function extendRedisPersistence (Y) {
       let state = this.ys.get(y)
       state.counter = 0
       state.contentClock = 0
-      return Promise.resolve()
+      return this._readyPromise
     }
 
     /**
