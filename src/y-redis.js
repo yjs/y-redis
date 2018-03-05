@@ -9,12 +9,13 @@
  */
 let saveUpdateCommandSha = null
 const saveUpdateCommand = `
--- [[ room:updates room:contentClock , update incrementContentClock ]]
+-- [[ room:updates room:contentClock room:counter, update incrementContentClock ]]
 redis.call("RPUSH", KEYS[1], ARGV[1])
 if ARGV[2] == "true" then
   redis.call("INCR", KEYS[2])
 end
 -- redis.call("PUBLISH", ARGV[2], ARGV[1])
+return { redis.call("LLEN", KEYS[1]), tonumber(redis.call("GET", KEYS[3])) }
 `
 
 /**
@@ -34,7 +35,7 @@ if del > 0 then
   redis.call("SET", KEYS[1], tonumber(ARGV[1]))
   redis.call("LTRIM", KEYS[2], del, -1)
   redis.call("SET", KEYS[3], ARGV[2])
-  if (ARGV[3] ~= nil) then
+  if (ARGV[3] ~= nil and ARGV[3] ~= '') then
     redis.call("SET", KEYS[4], ARGV[3])
   end
 end
@@ -125,6 +126,7 @@ function extendRedisPersistence (Y) {
       let state = this.ys.get(y)
       state.counter = 0
       state.contentClock = 0
+      state.persisting = false
       return this._readyPromise
     }
 
@@ -186,9 +188,20 @@ function extendRedisPersistence (Y) {
       if (incrementContentClock) {
         state.contentClock++
       }
-      this.redisClient.send_command('EVALSHA', [saveUpdateCommandSha, 2, y.room + ':updates', y.room + ':contentClock', Buffer.from(update), incrementContentClock ? 'true' : 'false'], function (err) {
+      const self = this
+      this.redisClient.send_command('EVALSHA', [saveUpdateCommandSha, 3, y.room + ':updates', y.room + ':contentClock', y.room + ':counter', Buffer.from(update), incrementContentClock ? 'true' : 'false'], function (err, res) {
         if (err !== null) {
           throw err
+        }
+        const updatesLen = res[0]
+        const counter = res[1]
+        if (state.counter + 1 === updatesLen + counter) {
+          state.counter++
+        } else {
+          self.retrieve(y)
+        }
+        if (updatesLen > 100 && state.persisting === false) {
+          self.persist(y)
         }
       })
     }
@@ -292,12 +305,14 @@ function extendRedisPersistence (Y) {
      */
     persist (y, extra = '') {
       const state = this.ys.get(y)
+      state.persisting = true
       return new Promise((resolve, reject) => {
         const room = y.room
         // save model and delete known updates
         const binaryModel = Buffer.from(super.persist(y))
         const args = [saveYjsModelSha, 4, room + ':counter', room + ':updates', room + ':model', room + ':extra', state.counter, binaryModel, extra]
         this.redisClient.send_command('EVALSHA', args, (err, res) => {
+          state.persisting = false
           if (err !== null) {
             reject(err)
           } else {
