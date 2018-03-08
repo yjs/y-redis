@@ -194,11 +194,12 @@ function extendRedisPersistence (Y) {
           throw err
         }
         const updatesLen = res[0]
-        const counter = res[1]
+        let counter = res[1]
+        if (typeof counter !== 'number' || isNaN(counter)) {
+          counter = 0
+        }
         if (state.counter + 1 === updatesLen + counter) {
           state.counter++
-        } else {
-          self.retrieve(y)
         }
         if (updatesLen > 100 && state.persisting === false) {
           self.persist(y)
@@ -260,11 +261,11 @@ function extendRedisPersistence (Y) {
                 contentClock = contentClock || '0'
                 updates = updates || []
                 extra = extra ? extra.toString() : null
-                if (counter === null) {
-                  state.counter = updates.length
-                } else {
-                  state.counter = Number.parseInt(counter + '') + updates.length
+                counter = Number.parseInt(counter)
+                if (typeof counter !== 'number' || isNaN(counter)) {
+                  counter = 0
                 }
+                state.counter = counter + updates.length
                 super.retrieve(y, model, updates)
                 state.contentClock = Number.parseInt(contentClock.toString())
                 const result = {
