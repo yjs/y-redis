@@ -235,10 +235,12 @@ function extendRedisPersistence (Y) {
               room + ':contentClock',
               room + ':extra',
               room + ':lastWriteToNoteStore'
-            ], function (err) {
+            ], err => {
               if (err !== null) {
                 reject(err)
               } else {
+                // inform Yjs that there is nothing to load (fire persistence ready)
+                super.retrieve(y, null, null)
                 resolve()
               }
             })
