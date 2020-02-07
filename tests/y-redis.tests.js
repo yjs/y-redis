@@ -134,9 +134,10 @@ export const testPerformance = async tc => {
   }
   {
     const redisPersistence = new RedisPersistence()
+    const doc = new Y.Doc()
+    const persistenceDoc = redisPersistence.bindState(tc.testName, doc)
     await t.measureTime(`read ${N / 1000}k updates`, async () => {
-      const doc = new Y.Doc()
-      await redisPersistence.bindState(tc.testName, doc).synced
+      await persistenceDoc.synced
       t.assert(doc.getArray('test').length === N)
       return undefined
     })
@@ -188,9 +189,11 @@ export const testPerformanceConcurrent = async tc => {
   }
   {
     const redisPersistence = new RedisPersistence()
+    const doc = new Y.Doc()
+    const persistenceDoc = redisPersistence.bindState(tc.testName, doc)
+
     await t.measureTime(`read ${N / 1000}k updates`, async () => {
-      const doc = new Y.Doc()
-      await redisPersistence.bindState(tc.testName, doc).synced
+      await persistenceDoc.synced
       t.assert(doc.getArray('test').length === N)
       return undefined
     })
