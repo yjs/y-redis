@@ -2,18 +2,11 @@ import * as Y from 'yjs'
 import * as mutex from 'lib0/mutex.js'
 import { Observable } from 'lib0/observable.js'
 import * as promise from 'lib0/promise.js'
-import * as number from 'lib0/number.js'
 import * as error from 'lib0/error.js'
+import * as logging from 'lib0/logging.js'
 import Redis from 'ioredis'
 
-/**
- * @param {RedisPersistence} rp
- */
-const getUpdates = rp => {
-  rp.docs.forEach(doc =>
-    doc.getUpdates()
-  )
-}
+const logger = logging.createModuleLogger('y-redis')
 
 /**
  * Handles persistence of a sinle doc.
@@ -34,6 +27,7 @@ export class PersistenceDoc {
      * @type {number}
      */
     this._clock = 0
+    this._fetchingClock = 0
     /**
      * @param {Uint8Array} update
      */
@@ -43,6 +37,9 @@ export class PersistenceDoc {
         rp.redis.rpushBuffer(name + ':updates', Buffer.from(update)).then(len => {
           if (len === this._clock + 1) {
             this._clock++
+            if (this._fetchingClock < this._clock) {
+              this._fetchingClock = this._clock
+            }
           }
           // @ts-ignore
           rp.redis.publish(this.name, len.toString())
@@ -73,6 +70,7 @@ export class PersistenceDoc {
   getUpdates () {
     const startClock = this._clock
     return this.rp.redis.lrangeBuffer(this.name + ':updates', startClock, -1).then(/** @type {function(Array<Buffer>)} */ updates => {
+      logger('Fetched ', logging.BOLD, logging.PURPLE, (updates.length).toString().padEnd(2), logging.UNBOLD, logging.UNCOLOR, ' updates')
       this.mux(() => {
         this.doc.transact(() => {
           updates.forEach(update => {
@@ -82,9 +80,23 @@ export class PersistenceDoc {
           if (this._clock < nextClock) {
             this._clock = nextClock
           }
+          if (this._fetchingClock < this._clock) {
+            this._fetchingClock = this._clock
+          }
         })
       })
-      return this
+      if (this._fetchingClock <= this._clock) {
+        return this
+      } else {
+        // there is still something missing. new updates came in. fetch again.
+        if (updates.length === 0) {
+          // Calling getUpdates recursively has the potential to be an infinite fetch-call.
+          // In case no new updates came in, reset _fetching clock (in case the pubsub lied / send an invalid message).
+          // Being overly protective here..
+          this._fetchingClock = this._clock
+        }
+        return this.getUpdates()
+      }
     })
   }
 }
@@ -115,18 +127,20 @@ export class RedisPersistence extends Observable {
      * @type {Map<string,PersistenceDoc>}
      */
     this.docs = new Map()
-    if (/** @type {any} */ (this.redis).status === 'ready') {
-      getUpdates(this)
-    }
-    this.redis.on('ready', () => {
-      getUpdates(this)
-    })
     this.sub.on('message', (channel, sclock) => {
+      // console.log('message', channel, sclock)
       const pdoc = this.docs.get(channel)
       if (pdoc) {
-        const clock = Number(sclock)
-        if (pdoc._clock < clock || number.isNaN(clock)) {
-          pdoc.getUpdates()
+        const clock = Number(sclock) || Number.POSITIVE_INFINITY // case of null
+        if (pdoc._fetchingClock < clock) {
+          // do not query doc updates if this document is currently already fetching
+          const isCurrentlyFetching = pdoc._fetchingClock !== pdoc._clock
+          if (pdoc._fetchingClock < clock) {
+            pdoc._fetchingClock = clock
+          }
+          if (!isCurrentlyFetching) {
+            pdoc.getUpdates()
+          }
         }
       } else {
         this.sub.unsubscribe(channel)
@@ -141,7 +155,7 @@ export class RedisPersistence extends Observable {
    */
   bindState (name, ydoc) {
     if (this.docs.has(name)) {
-      throw error.create('This document name is already bound to this RedisPersistence instance')
+      throw error.create(`"${name}" is already bound to this RedisPersistence instance`)
     }
     const pd = new PersistenceDoc(this, name, ydoc)
     this.docs.set(name, pd)
@@ -154,6 +168,10 @@ export class RedisPersistence extends Observable {
     return promise.all(Array.from(docs.values()).map(doc => doc.destroy())).then(() => {
       this.redis.quit()
       this.sub.quit()
+      // @ts-ignore
+      this.redis = null
+      // @ts-ignore
+      this.sub = null
     })
   }
 

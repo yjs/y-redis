@@ -6,7 +6,8 @@
   "types": "./dist/src/y-redis.d.ts",
   "scripts": {
     "dist": "rm -rf dist && rollup -c && tsc",
-    "test": "rollup -c && node ./dist/test.js",
+    "test": "rollup -c && LOG=y-redis node ./dist/test.cjs",
+    "debug": "rollup -c && LOG=y-redis node --unhandled-rejections=strict --inspect-brk ./dist/test.cjs",
     "lint": "standard && tsc",
     "preversion": "npm run lint && npm test && npm run dist"
   },

@@ -9,7 +9,7 @@ const paths = path => {
 export default [{
   input: './tests/index.js',
   output: {
-    file: './dist/test.js',
+    file: './dist/test.cjs',
     format: 'cjs',
     sourcemap: true,
     paths
