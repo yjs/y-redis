@@ -11,9 +11,15 @@
     "lint": "standard && tsc",
     "preversion": "npm run lint && npm test && npm run dist"
   },
+  "files": [
+    "dist/*",
+    "src/*",
+    "tests/*",
+    "docs/*"
+  ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/y-js/y-redis"
+    "url": "https://github.com/yjs/y-redis"
   },
   "keywords": [
     "Yjs",
