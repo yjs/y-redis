@@ -4,7 +4,7 @@ import { Observable } from 'lib0/observable.js'
 import * as promise from 'lib0/promise.js'
 import * as error from 'lib0/error.js'
 import * as logging from 'lib0/logging.js'
-import Redis from 'ioredis'
+import * as Redis from 'ioredis'
 
 const logger = logging.createModuleLogger('y-redis')
 
