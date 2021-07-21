@@ -2,16 +2,25 @@
   "name": "y-redis",
   "version": "1.0.2",
   "description": "Redis persistence adapter for Yjs",
-  "main": "./dist/y-redis.cjs",
+  "main": "./src/y-redis.js",
   "types": "./dist/src/y-redis.d.ts",
+  "type": "module",
+  "sideEffects": "false",
   "funding": {
     "type": "GitHub Sponsors ❤",
     "url": "https://github.com/sponsors/dmonad"
   },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": "./src/y-redis.js",
+      "require": "./dist/y-redis.cjs"
+    }
+  },
   "scripts": {
     "dist": "rm -rf dist && rollup -c && tsc",
-    "test": "rollup -c && LOG=y-redis node ./dist/test.cjs",
-    "debug": "rollup -c && LOG=y-redis node --unhandled-rejections=strict --inspect-brk ./dist/test.cjs",
+    "test": "LOG=y-redis node ./tests/index.js",
+    "debug": "LOG=y-redis node --unhandled-rejections=strict --inspect-brk ./tests/index.js",
     "lint": "standard && tsc",
     "preversion": "npm run lint && npm test && npm run dist"
   },
