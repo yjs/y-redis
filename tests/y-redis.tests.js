@@ -163,7 +163,7 @@ export const testPerformanceConcurrent = async tc => {
     const doc2 = new Y.Doc()
     const persistenceDoc2 = redisPersistence2.bindState(tc.testName, doc2)
     await persistenceDoc2.synced
-    await t.measureTime(`write ${N / 1000}k updates`, async () => {
+    await t.measureTimeAsync(`write ${N / 1000}k updates`, async () => {
       const testarray1 = doc1.getArray('test')
       const testarray2 = doc2.getArray('test')
       for (let i = 0; i < N; i++) {

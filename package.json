@@ -4,6 +4,10 @@
   "description": "Redis persistence adapter for Yjs",
   "main": "./dist/y-redis.cjs",
   "types": "./dist/src/y-redis.d.ts",
+  "funding": {
+    "type": "GitHub Sponsors ❤",
+    "url": "https://github.com/sponsors/dmonad"
+  },
   "scripts": {
     "dist": "rm -rf dist && rollup -c && tsc",
     "test": "rollup -c && LOG=y-redis node ./dist/test.cjs",
@@ -37,17 +41,17 @@
   },
   "homepage": "https://yjs.dev",
   "devDependencies": {
-    "@types/ioredis": "^4.14.6",
-    "rollup": "^1.31.0",
+    "@types/ioredis": "^4.26.6",
+    "rollup": "^1.32.1",
     "standard": "^10.0.3",
-    "typescript": "^3.7.5",
-    "yjs": "^13.0.2"
+    "typescript": "^3.9.10",
+    "yjs": "^13.5.11"
   },
   "peerDependencies": {
     "yjs": "^13.0.2"
   },
   "dependencies": {
-    "ioredis": "^4.14.1",
-    "lib0": "^0.2.13"
+    "ioredis": "^4.27.6",
+    "lib0": "^0.2.42"
   }
 }
