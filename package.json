@@ -1,6 +1,6 @@
 {
   "name": "y-redis",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Redis persistence adapter for Yjs",
   "main": "./src/y-redis.js",
   "types": "./dist/src/y-redis.d.ts",
