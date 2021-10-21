@@ -73,9 +73,8 @@ export class PersistenceDoc {
       logger('Fetched ', logging.BOLD, logging.PURPLE, (updates.length).toString().padEnd(2), logging.UNBOLD, logging.UNCOLOR, ' updates')
       this.mux(() => {
         this.doc.transact(() => {
-          updates.forEach(update => {
-            Y.applyUpdate(this.doc, update)
-          })
+          const mergedUpdates = Y.mergeUpdates(updates);
+          Y.applyUpdate(this.doc, mergedUpdates);
           const nextClock = startClock + updates.length
           if (this._clock < nextClock) {
             this._clock = nextClock
