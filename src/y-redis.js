@@ -99,6 +99,15 @@ export class PersistenceDoc {
       }
     })
   }
+
+  /**
+   * Replace existing redis list with a single update, reducing size of list and improving performance
+   */
+  replaceUpdatesWithEncodedState () {
+    return this.rp.redis.rpushBuffer(this.name + ':updates', Y.encodeStateAsUpdate(this.doc)).then(() => {
+      return this.rp.redis.ltrim(this.name + ':updates', -1, -1);
+    });
+  }
 }
 
 /**
