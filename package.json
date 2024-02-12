@@ -12,7 +12,8 @@
     "start": "node ./bin/server.js",
     "dist": "rm -rf dist && rollup -c && tsc",
     "lint": "standard && tsc",
-    "test": "npm run lint",
+    "test": "npm run lint && node tests/index.js",
+    "test-inspect": "node --inspect-brk tests/index.js",
     "preversion": "npm run lint && npm run dist && test -e dist/src/y-websocket.d.ts && test -e dist/y-websocket.cjs"
   },
   "bin": {

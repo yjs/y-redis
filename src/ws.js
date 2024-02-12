@@ -52,7 +52,11 @@ class User {
   }
 }
 
-const logReturn = (data) => {
+/**
+ * @todo remove
+ * @param {Uint8Array} data
+ */
+const logReturn = data => {
   console.log('sending', data)
   return data
 }

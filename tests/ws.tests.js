@@ -25,7 +25,7 @@ const store = new storage.MemoryStorage()
 const createWsClient = (tc, room) => {
   const ydoc = new Y.Doc()
   const roomPrefix = tc.testName
-  const provider = new WebsocketProvider(wsUrl, roomPrefix + '-' + room, ydoc, { WebSocketPolyfill: WebSocket, disableBc: true })
+  const provider = new WebsocketProvider(wsUrl, roomPrefix + '-' + room, ydoc, { WebSocketPolyfill: /** @type {any} */ (WebSocket), disableBc: true })
   return { ydoc, provider }
 }
 
