@@ -1,66 +1,78 @@
 {
-  "name": "y-redis",
-  "version": "1.0.3",
-  "description": "Redis persistence adapter for Yjs",
-  "main": "./src/y-redis.js",
-  "types": "./dist/src/y-redis.d.ts",
+  "name": "@y/redis",
+  "version": "1.5.3",
+  "description": "Scalable websockets provider for Yjs using redis",
+  "sideEffects": false,
   "type": "module",
-  "sideEffects": "false",
   "funding": {
     "type": "GitHub Sponsors ❤",
     "url": "https://github.com/sponsors/dmonad"
   },
-  "exports": {
-    "./package.json": "./package.json",
-    ".": {
-      "import": "./src/y-redis.js",
-      "require": "./dist/y-redis.cjs"
-    }
-  },
   "scripts": {
+    "start": "node ./bin/server.js",
     "dist": "rm -rf dist && rollup -c && tsc",
-    "test": "LOG=y-redis node ./tests/index.js",
-    "debug": "LOG=y-redis node --unhandled-rejections=strict --inspect-brk ./tests/index.js",
     "lint": "standard && tsc",
-    "preversion": "npm run lint && npm test && npm run dist"
+    "test": "npm run lint",
+    "preversion": "npm run lint && npm run dist && test -e dist/src/y-websocket.d.ts && test -e dist/y-websocket.cjs"
+  },
+  "bin": {
+    "y-redis-server": "./bin/server.js"
   },
   "files": [
     "dist/*",
-    "src/*",
-    "tests/*",
-    "docs/*"
+    "bin/*",
+    "src/*"
   ],
+  "exports": {
+    "./package.json": "./package.json",
+    "./bin/utils": "./bin/utils.js",
+    "./bin/callback": "./bin/callback.js",
+    ".": {
+      "module": "./src/y-websocket.js",
+      "import": "./src/y-websocket.js",
+      "require": "./dist/y-websocket.cjs",
+      "types": "./dist/src/y-websocket.d.ts"
+    }
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yjs/y-redis"
+    "url": "git+https://github.com/yjs/y-redis.git"
   },
   "keywords": [
-    "Yjs",
-    "Collaboration",
-    "Synchronization",
-    "ShareJS",
-    "Coweb",
-    "Concurrency",
-    "Persistence"
+    "Yjs"
   ],
   "author": "Kevin Jahns <kevin.jahns@protonmail.com>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/yjs/y-redis/issues"
   },
-  "homepage": "https://yjs.dev",
-  "devDependencies": {
-    "@types/ioredis": "^4.26.6",
-    "rollup": "^1.32.1",
-    "standard": "^10.0.3",
-    "typescript": "^3.9.10",
-    "yjs": "^13.5.11"
-  },
-  "peerDependencies": {
-    "yjs": "^13.0.2"
+  "homepage": "https://github.com/yjs/y-redis#readme",
+  "standard": {
+    "ignore": [
+      "/dist",
+      "/node_modules"
+    ]
   },
   "dependencies": {
-    "ioredis": "^4.27.6",
-    "lib0": "^0.2.42"
+    "lib0": "^0.2.88",
+    "redis": "^4.6.12",
+    "uws": "github:uNetworking/uWebSockets.js#v20.40.0",
+    "y-protocols": "^1.0.6"
+  },
+  "peerDependencies": {
+    "yjs": "^13.5.6"
+  },
+  "engines": {
+    "npm": ">=8.0.0",
+    "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@types/ws": "^8.5.10",
+    "rollup": "^4.9.5",
+    "standard": "^17.1.0",
+    "typescript": "^5.3.3",
+    "ws": "^8.16.0",
+    "y-websocket": "^1.5.3"
   }
 }
