@@ -30,6 +30,15 @@ const run = async subscriber => {
   }
 }
 
+/**
+ * @param {string} url
+ * @param {import('./storage.js').AbstractStorage} store
+ */
+export const createSubscriber = async (url, store) => {
+  const client = await api.createApiClient(url, store)
+  return new Subscriber(client)
+}
+
 export class Subscriber {
   /**
    * @param {api.Api} client

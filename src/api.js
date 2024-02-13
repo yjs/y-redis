@@ -155,6 +155,10 @@ export class Api {
    * @return {Promise<Array<{ stream: string, messages: Array<Uint8Array>, lastId: string }>>}
    */
   async getMessages (streams) {
+    if (streams.length === 0) {
+      await promise.wait(50)
+      return []
+    }
     const reads = await this.redis.xRead(
       redis.commandOptions({ returnBuffers: true }),
       streams,

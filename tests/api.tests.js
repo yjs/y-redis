@@ -4,6 +4,7 @@ import * as api from '../src/api.js'
 import * as encoding from 'lib0/encoding'
 import * as storage from '../src/storage.js'
 import * as promise from 'lib0/promise'
+import * as redis from 'redis'
 
 const redisUrl = 'redis://localhost:6379'
 
@@ -19,6 +20,11 @@ const store = new storage.MemoryStorage()
 const createTestCase = async tc => {
   await promise.all(prevClients.map(c => c.destroy()))
   prevClients.length = 0
+  const redisClient = redis.createClient({ url: redisUrl })
+  await redisClient.connect()
+  await redisClient.flushAll()
+  await redisClient.quit()
+
   const client = await api.createApiClient(redisUrl, store)
   prevClients.push(client)
   const room = tc.testName
@@ -33,7 +39,6 @@ const createTestCase = async tc => {
     })
     client.addMessage(room, docid, Buffer.from(m))
   })
-  await client.redis.flushAll()
   return {
     client,
     ydoc,

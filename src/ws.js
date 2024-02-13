@@ -6,7 +6,7 @@ import * as api from './api.js'
 import * as array from 'lib0/array'
 import * as encoding from 'lib0/encoding'
 import * as protocol from './protocol.js'
-import { Subscriber } from './subscriber.js'
+import { createSubscriber } from './subscriber.js'
 
 /**
  * how to sync
@@ -28,14 +28,14 @@ class YWebsocketServer {
    */
   constructor (app, client, subscriber) {
     this.app = app
-    this.client = client
     this.subscriber = subscriber
+    this.client = client
   }
 
-  destroy () {
+  async destroy () {
     this.app.close()
-    this.client.destroy()
     this.subscriber.destroy()
+    await this.client.destroy()
   }
 }
 
@@ -69,7 +69,7 @@ const logReturn = data => {
 export const createYWebsocketServer = async (port, redisUrl, store) => {
   const [client, subscriber] = await promise.all([
     api.createApiClient(redisUrl, store),
-    api.createApiClient(redisUrl, store).then(client => new Subscriber(client))
+    createSubscriber(redisUrl, store)
   ])
   /**
    * @param {string} stream
@@ -84,6 +84,7 @@ export const createYWebsocketServer = async (port, redisUrl, store) => {
       : encoding.encode(encoder => messages.forEach(message => {
         encoding.writeUint8Array(encoder, message)
       }))
+    console.log('publishing message', { stream, message })
     app.publish(stream, message, true, false)
   }
   const app = uws.App({})
@@ -121,7 +122,8 @@ export const createYWebsocketServer = async (port, redisUrl, store) => {
       }
     },
     message: (ws, messageBuffer) => {
-      const message = Buffer.from(messageBuffer)
+      // it is important to copy the data here
+      const message = Buffer.from(messageBuffer.slice(0, messageBuffer.byteLength))
       const user = ws.getUserData()
       const indexStream = api.computeRedisRoomStreamName(user.room, 'index')
       if ( // filter out messages that we simply want to propagate to all clients
@@ -130,6 +132,7 @@ export const createYWebsocketServer = async (port, redisUrl, store) => {
         // awareness update
         message[0] === protocol.messageAwareness
       ) {
+        console.log('server receiving..', message)
         client.addMessage(indexStream, 'index', message)
       } else if (message[0] === protocol.messageSync && message[1] === protocol.messageSyncStep1) { // sync step 1
         // can be safely ignored because we send the full initial state at the beginning

@@ -7,13 +7,14 @@ import { WebSocket } from 'ws'
 import * as ws from '../src/ws.js'
 import * as array from 'lib0/array'
 import { WebsocketProvider } from 'y-websocket'
+import * as redis from 'redis'
 
 const port = 3000
 const redisUrl = 'redis://localhost:6379'
 const wsUrl = `ws://localhost:${port}`
 
 /**
- * @type {Array<{ destroy: function():void }>}
+ * @type {Array<{ destroy: function():Promise<void>}>}
  */
 const prevClients = []
 const store = new storage.MemoryStorage()
@@ -55,9 +56,11 @@ const createApiClient = async () => {
 const createTestCase = async tc => {
   await promise.all(prevClients.map(c => c.destroy()))
   prevClients.length = 0
-  const apiClient = await createApiClient()
-  await apiClient.redis.flushAll()
-  const [server, worker] = await promise.all([createServer(), createWorker()])
+  const redisClient = redis.createClient({ url: redisUrl })
+  await redisClient.connect()
+  await redisClient.flushAll()
+  await redisClient.quit()
+  const [apiClient, server, worker] = await promise.all([createApiClient(), createServer(), createWorker()])
   return {
     apiClient,
     server,
