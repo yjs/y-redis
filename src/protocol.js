@@ -1,8 +1,10 @@
 import * as Y from 'yjs'
 import * as error from 'lib0/error'
 import * as encoding from 'lib0/encoding'
+import * as decoding from 'lib0/decoding'
 import * as array from 'lib0/array'
 import * as awarenessProtocol from 'y-protocols/awareness'
+import * as buffer from 'lib0/buffer'
 
 export const messageSync = 0
 export const messageAwareness = 1
@@ -34,12 +36,29 @@ export const mergeMessages = messages => {
    */
   const updates = []
   messages.forEach(m => {
-    if (m[0] === messageSync && m[1] === 1) { // update message
-      updates.push(m.slice(2))
-    } else if (m[0] === messageAwareness) {
-      awarenessProtocol.applyAwarenessUpdate(aw, m.slice(1), null)
-    } else {
-      error.unexpectedCase() // unexpected message type
+    const decoder = decoding.createDecoder(m)
+    try {
+      const messageType = decoding.readUint8(decoder)
+      switch (messageType) {
+        case messageSync: {
+          const syncType = decoding.readUint8(decoder)
+          if (syncType === messageSyncUpdate) {
+            updates.push(decoding.readVarUint8Array(decoder))
+          } else {
+            error.unexpectedCase()
+          }
+          break
+        }
+        case messageAwareness: {
+          awarenessProtocol.applyAwarenessUpdate(aw, decoding.readVarUint8Array(decoder), null)
+          break
+        }
+        default: {
+          error.unexpectedCase()
+        }
+      }
+    } catch (e) {
+      console.error('issue parsing message', buffer.toBase64(m), e)
     }
   })
   /**
@@ -48,7 +67,7 @@ export const mergeMessages = messages => {
   const result = []
   updates.length > 0 && result.push(encoding.encode(encoder => {
     encoding.writeVarUint(encoder, messageSync)
-    encoding.writeVarUint(encoder, 1) // update
+    encoding.writeVarUint(encoder, messageSyncUpdate) // update
     encoding.writeVarUint8Array(encoder, Y.mergeUpdates(updates))
   }))
   aw.states.size > 0 && result.push(encoding.encode(encoder => {

@@ -24,7 +24,7 @@ class YWebsocketServer {
   /**
    * @param {uws.TemplatedApp} app
    * @param {api.Api} client
-   * @param {Subscriber} subscriber
+   * @param {import('./subscriber.js').Subscriber} subscriber
    */
   constructor (app, client, subscriber) {
     this.app = app
@@ -53,15 +53,6 @@ class User {
 }
 
 /**
- * @todo remove
- * @param {Uint8Array} data
- */
-const logReturn = data => {
-  console.log('sending', data)
-  return data
-}
-
-/**
  * @param {number} port
  * @param {string} redisUrl
  * @param {import('./storage.js').AbstractStorage} store
@@ -84,7 +75,6 @@ export const createYWebsocketServer = async (port, redisUrl, store) => {
       : encoding.encode(encoder => messages.forEach(message => {
         encoding.writeUint8Array(encoder, message)
       }))
-    console.log('publishing message', { stream, message })
     app.publish(stream, message, true, false)
   }
   const app = uws.App({})
@@ -109,10 +99,10 @@ export const createYWebsocketServer = async (port, redisUrl, store) => {
       user.initialRedisSubId = subscriber.subscribe(stream, redisMessageSubscriber).redisId
       const indexDoc = await client.getDoc(user.room, 'index')
       ws.cork(() => {
-        ws.send(logReturn(protocol.encodeSyncStep1(Y.encodeStateVector(indexDoc.ydoc))), true, false)
-        ws.send(logReturn(protocol.encodeSyncStep2(Y.encodeStateAsUpdate(indexDoc.ydoc))), true, true)
+        ws.send(protocol.encodeSyncStep1(Y.encodeStateVector(indexDoc.ydoc)), true, false)
+        ws.send(protocol.encodeSyncStep2(Y.encodeStateAsUpdate(indexDoc.ydoc)), true, true)
         if (indexDoc.awareness.states.size > 0) {
-          ws.send(logReturn(protocol.encodeAwarenessUpdate(indexDoc.awareness, array.from(indexDoc.awareness.states.keys()))), true, true)
+          ws.send(protocol.encodeAwarenessUpdate(indexDoc.awareness, array.from(indexDoc.awareness.states.keys())), true, true)
         }
       })
       if (api.isSmallerRedisId(indexDoc.redisLastId, user.initialRedisSubId)) {
@@ -125,15 +115,13 @@ export const createYWebsocketServer = async (port, redisUrl, store) => {
       // it is important to copy the data here
       const message = Buffer.from(messageBuffer.slice(0, messageBuffer.byteLength))
       const user = ws.getUserData()
-      const indexStream = api.computeRedisRoomStreamName(user.room, 'index')
       if ( // filter out messages that we simply want to propagate to all clients
         // sync update or sync step 2
         (message[0] === protocol.messageSync && (message[1] === protocol.messageSyncUpdate || message[1] === protocol.messageSyncStep2)) ||
         // awareness update
         message[0] === protocol.messageAwareness
       ) {
-        console.log('server receiving..', message)
-        client.addMessage(indexStream, 'index', message)
+        client.addMessage(user.room, 'index', message)
       } else if (message[0] === protocol.messageSync && message[1] === protocol.messageSyncStep1) { // sync step 1
         // can be safely ignored because we send the full initial state at the beginning
       } else {
