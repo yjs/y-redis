@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "target": "es2022",
+    "module": "nodenext",
     "lib": ["es2022", "dom"],
     "allowJs": true,
     "checkJs": true,
@@ -12,7 +13,8 @@
     "strict": true,
     "noImplicitAny": true,
     "emitDeclarationOnly": true,
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
+    "allowSyntheticDefaultImports": true,
     "baseUrl": "./",
     "paths": {
     }

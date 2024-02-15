@@ -2,17 +2,11 @@ import * as Y from 'yjs'
 import * as t from 'lib0/testing'
 import * as api from '../src/api.js'
 import * as encoding from 'lib0/encoding'
-import * as storage from '../src/storage.js'
 import * as promise from 'lib0/promise'
 import * as redis from 'redis'
+import { prevClients, store } from './utils.js'
 
 const redisUrl = 'redis://localhost:6379'
-
-/**
- * @type {Array<api.Api>}
- */
-const prevClients = []
-const store = new storage.MemoryStorage()
 
 /**
  * @param {t.TestCase} tc
@@ -24,7 +18,6 @@ const createTestCase = async tc => {
   await redisClient.connect()
   await redisClient.flushAll()
   await redisClient.quit()
-
   const client = await api.createApiClient(redisUrl, store)
   prevClients.push(client)
   const room = tc.testName

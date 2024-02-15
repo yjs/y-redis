@@ -9,10 +9,10 @@
     "url": "https://github.com/sponsors/dmonad"
   },
   "scripts": {
-    "start": "node ./bin/server.js",
+    "start": "dotenv run node ./bin/server.js",
     "dist": "rm -rf dist && rollup -c && tsc",
     "lint": "standard && tsc",
-    "test": "npm run lint && node tests/index.js",
+    "test": "dotenv run node tests/index.js && npm run lint",
     "test-inspect": "node --inspect-brk tests/index.js",
     "preversion": "npm run lint && npm run dist && test -e dist/src/y-websocket.d.ts && test -e dist/y-websocket.cjs"
   },
@@ -56,6 +56,7 @@
   },
   "dependencies": {
     "lib0": "^0.2.88",
+    "postgres": "^3.4.3",
     "redis": "^4.6.12",
     "uws": "github:uNetworking/uWebSockets.js#v20.40.0",
     "y-protocols": "^1.0.6"

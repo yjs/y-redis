@@ -275,7 +275,7 @@ export class Api {
         const lastId = math.max(number.parseInt(redisLastId.split('-')[0]), number.parseInt(task.id.split('-')[0]))
         await this.store.persistDoc(room, docid, ydoc)
         await promise.all([
-          storeReferences ? this.store.deleteReferences(storeReferences) : promise.resolve(),
+          storeReferences ? this.store.deleteReferences(room, docid, storeReferences) : promise.resolve(),
           this.redis.multi()
             .xTrim(task.stream, 'MINID', lastId - this.redisMinMessageLifetime)
             .xAdd(this.redisWorkerStreamName, '*', { compact: task.stream })

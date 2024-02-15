@@ -1,10 +1,20 @@
 #!/usr/bin/env node
 
-import { MemoryStorage } from '../src/storage.js'
 import { createYWebsocketServer } from '../src/ws.js'
 import * as env from 'lib0/environment'
 import * as number from 'lib0/number'
 
-const port = number.parseInt(env.getConf('port') || '8080')
+const port = number.parseInt(env.getConf('port') || '3000')
+// postgres://username:password@host:port/database
+const postgresUrl = env.getConf('postgres')
 
-createYWebsocketServer(port, 'localhost', new MemoryStorage())
+let storage
+if (postgresUrl) {
+  const { createPostgresStorage } = await import('../src/storage/postgres.js')
+  storage = await createPostgresStorage(postgresUrl)
+} else {
+  const { createMemoryStorage } = await import('../src/storage/memory.js')
+  storage = createMemoryStorage()
+}
+
+createYWebsocketServer(port, 'localhost', storage)
