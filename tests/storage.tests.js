@@ -1,25 +1,33 @@
 import * as t from 'lib0/testing'
-import * as env from 'lib0/environment'
 import { createPostgresStorage } from '../src/storage/postgres.js'
 import { createMemoryStorage } from '../src/storage/memory.js'
 import * as Y from 'yjs'
+import { createS3Storage } from '../src/storage/s3.js'
+import * as env from 'lib0/environment'
 
-// postgres://username:password@host:port/database
-const postgresUrl = env.getConf('postgres')
+const s3TestBucketName = 'yredis-tests'
 
 /**
  * @param {t.TestCase} _tc
  */
 export const testStorages = async _tc => {
-  if (postgresUrl == null) t.fail('Must specify `POSTGRES` (connection url) environment variable!')
-  const postgres = await createPostgresStorage(postgresUrl)
+  const s3 = createS3Storage(s3TestBucketName)
+  try {
+    // make sure the bucket exists
+    await s3.client.makeBucket(s3TestBucketName)
+  } catch (e) {}
+  try {
+    const files = await s3.client.listObjectsV2(s3TestBucketName, '', true).toArray()
+    await s3.client.removeObjects(s3TestBucketName, files.map(file => file.name))
+  } catch (e) {}
+  const postgres = await createPostgresStorage({ database: env.ensureConf('postgres-testdb') })
   await postgres.sql`DELETE from yredis_docs_v1`
   const memory = createMemoryStorage()
 
   /**
    * @type {Object<string, import('../src/storage.js').AbstractStorage>}
    */
-  const storages = { postgres, memory }
+  const storages = { s3, postgres, memory }
   for (const storageName in storages) {
     const storage = storages[storageName]
     await t.groupAsync(`storage: ${storageName}`, async () => {

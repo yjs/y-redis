@@ -11,7 +11,7 @@ const postgresUrl = env.getConf('postgres')
 let storage
 if (postgresUrl) {
   const { createPostgresStorage } = await import('../src/storage/postgres.js')
-  storage = await createPostgresStorage(postgresUrl)
+  storage = await createPostgresStorage()
 } else {
   const { createMemoryStorage } = await import('../src/storage/memory.js')
   storage = createMemoryStorage()

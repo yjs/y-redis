@@ -1,16 +1,24 @@
 import * as Y from 'yjs'
 import postgres from 'postgres'
 import * as error from 'lib0/error'
+import * as env from 'lib0/environment'
 
 /**
  * @typedef {import('../storage.js').AbstractStorage} AbstractStorage
  */
 
 /**
- * @param {string} postgresUrl
+ * @param {Object} [conf]
+ * @param {string} [conf.database]
  */
-export const createPostgresStorage = async postgresUrl => {
-  const sql = postgres(postgresUrl)
+export const createPostgresStorage = async ({ database } = {}) => {
+  // postgres://username:password@host:port/database
+  const postgresUrl = env.ensureConf('postgres')
+  const postgresConf = {}
+  if (database) {
+    postgresConf.database = database
+  }
+  const sql = postgres(postgresUrl, { database })
   const docsTableExists = await sql`
     SELECT EXISTS (
       SELECT FROM 

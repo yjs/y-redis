@@ -10,6 +10,7 @@
   },
   "scripts": {
     "start": "dotenv run node ./bin/server.js",
+    "minio": "docker run -p 9000:9000 -p 9001:9001 quay.io/minio/minio server /data --console-address \":9001\"",
     "dist": "rm -rf dist && rollup -c && tsc",
     "lint": "standard && tsc",
     "test": "dotenv run node tests/index.js && npm run lint",
@@ -56,6 +57,7 @@
   },
   "dependencies": {
     "lib0": "^0.2.88",
+    "minio": "^7.1.3",
     "postgres": "^3.4.3",
     "redis": "^4.6.12",
     "uws": "github:uNetworking/uWebSockets.js#v20.40.0",
