@@ -10,7 +10,6 @@ import * as redis from 'redis'
 import { prevClients, store } from './utils.js'
 
 const port = 3000
-const redisUrl = 'redis://localhost:6379'
 const wsUrl = `ws://localhost:${port}`
 
 /**
@@ -25,7 +24,7 @@ const createWsClient = (tc, room) => {
 }
 
 const createWorker = async () => {
-  const worker = await api.createWorker(redisUrl, store)
+  const worker = await api.createWorker(store)
   worker.client.redisMinMessageLifetime = 200
   worker.client.redisWorkerTimeout = 50
   prevClients.push(worker.client)
@@ -33,13 +32,13 @@ const createWorker = async () => {
 }
 
 const createServer = async () => {
-  const server = await ws.createYWebsocketServer(port, redisUrl, store)
+  const server = await ws.createYWebsocketServer(port, store)
   prevClients.push(server)
   return server
 }
 
 const createApiClient = async () => {
-  const client = await api.createApiClient(redisUrl, store)
+  const client = await api.createApiClient(store)
   prevClients.push(client)
   return client
 }
@@ -50,7 +49,7 @@ const createApiClient = async () => {
 const createTestCase = async tc => {
   await promise.all(prevClients.map(c => c.destroy()))
   prevClients.length = 0
-  const redisClient = redis.createClient({ url: redisUrl })
+  const redisClient = redis.createClient({ url: api.redisUrl })
   await redisClient.connect()
   await redisClient.flushAll()
   prevClients.push({ destroy: () => redisClient.quit().then(() => {}) })

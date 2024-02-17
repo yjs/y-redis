@@ -17,4 +17,4 @@ if (postgresUrl) {
   storage = createMemoryStorage()
 }
 
-createYWebsocketServer(port, 'localhost', storage)
+createYWebsocketServer(port, storage)

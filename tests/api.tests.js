@@ -6,19 +6,17 @@ import * as promise from 'lib0/promise'
 import * as redis from 'redis'
 import { prevClients, store } from './utils.js'
 
-const redisUrl = 'redis://localhost:6379'
-
 /**
  * @param {t.TestCase} tc
  */
 const createTestCase = async tc => {
   await promise.all(prevClients.map(c => c.destroy()))
   prevClients.length = 0
-  const redisClient = redis.createClient({ url: redisUrl })
+  const redisClient = redis.createClient({ url: api.redisUrl })
   await redisClient.connect()
   await redisClient.flushAll()
   await redisClient.quit()
-  const client = await api.createApiClient(redisUrl, store)
+  const client = await api.createApiClient(store)
   prevClients.push(client)
   const room = tc.testName
   const docid = 'main'
@@ -42,7 +40,7 @@ const createTestCase = async tc => {
 }
 
 const createWorker = async () => {
-  const worker = await api.createWorker(redisUrl, store)
+  const worker = await api.createWorker(store)
   worker.client.redisMinMessageLifetime = 200
   worker.client.redisWorkerTimeout = 50
   prevClients.push(worker.client)

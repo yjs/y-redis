@@ -9,6 +9,9 @@ import * as number from 'lib0/number'
 import * as promise from 'lib0/promise'
 import * as math from 'lib0/math'
 import * as protocol from './protocol.js'
+import * as env from 'lib0/environment'
+
+export const redisUrl = env.ensureConf('redis')
 
 /**
  * @param {string} a
@@ -69,11 +72,10 @@ const decodeRedisRoomStreamName = rediskey => {
 }
 
 /**
- * @param {string} url
  * @param {import('./storage.js').AbstractStorage} store
  */
-export const createApiClient = async (url, store) => {
-  const a = new Api(url, store)
+export const createApiClient = async (store) => {
+  const a = new Api(store)
   await a.redis.connect()
   try {
     await a.redis.xGroupCreate(a.redisWorkerStreamName, a.redisWorkerGroupName, '0', { MKSTREAM: true })
@@ -83,10 +85,9 @@ export const createApiClient = async (url, store) => {
 
 export class Api {
   /**
-   * @param {string} url
    * @param {import('./storage.js').AbstractStorage} store
    */
-  constructor (url, store) {
+  constructor (store) {
     this.store = store
     this.consumername = random.uuidv4()
     /**
@@ -101,7 +102,7 @@ export class Api {
     this.redisWorkerGroupName = 'y:worker'
     this._destroyed = false
     this.redis = redis.createClient({
-      url,
+      url: redisUrl,
       // scripting: https://github.com/redis/node-redis/#lua-scripts
       scripts: {
         addMessage: redis.defineScript({
@@ -295,11 +296,10 @@ export class Api {
 }
 
 /**
- * @param {string} url
  * @param {import('./storage.js').AbstractStorage} store
  */
-export const createWorker = async (url, store) => {
-  const a = await createApiClient(url, store)
+export const createWorker = async (store) => {
+  const a = await createApiClient(store)
   return new Worker(a)
 }
 

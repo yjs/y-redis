@@ -54,13 +54,12 @@ class User {
 
 /**
  * @param {number} port
- * @param {string} redisUrl
  * @param {import('./storage.js').AbstractStorage} store
  */
-export const createYWebsocketServer = async (port, redisUrl, store) => {
+export const createYWebsocketServer = async (port, store) => {
   const [client, subscriber] = await promise.all([
-    api.createApiClient(redisUrl, store),
-    createSubscriber(redisUrl, store)
+    api.createApiClient(store),
+    createSubscriber(store)
   ])
   /**
    * @param {string} stream
