@@ -28,14 +28,15 @@ export const isSmallerRedisId = (a, b) => {
 
 /**
  * @param {import('@redis/client/dist/lib/commands/generic-transformers.js').StreamsMessagesReply} streamReply
+ * @param {string} prefix
  */
-const extractMessagesFromStreamReply = streamReply => {
+const extractMessagesFromStreamReply = (streamReply, prefix) => {
   /**
    * @type {Map<string, Map<string, { lastId: string, messages: Array<Uint8Array> }>>}
    */
   const messages = new Map()
   streamReply?.forEach(docStreamReply => {
-    const { room, docid } = decodeRedisRoomStreamName(docStreamReply.name.toString())
+    const { room, docid } = decodeRedisRoomStreamName(docStreamReply.name.toString(), prefix)
     const docMessages = map.setIfUndefined(
       map.setIfUndefined(
         messages,
@@ -57,25 +58,28 @@ const extractMessagesFromStreamReply = streamReply => {
 /**
  * @param {string} room
  * @param {string} docid
+ * @param {string} prefix
  */
-export const computeRedisRoomStreamName = (room, docid) => `y:room:${encodeURIComponent(room)}:${encodeURIComponent(docid)}`
+export const computeRedisRoomStreamName = (room, docid, prefix) => `${prefix}:${encodeURIComponent(room)}:${encodeURIComponent(docid)}`
 
 /**
  * @param {string} rediskey
+ * @param {string} expectedPrefix
  */
-const decodeRedisRoomStreamName = rediskey => {
-  const match = rediskey.match(/y:room:(.*):(.*)$/)
-  if (match == null) {
-    throw new Error('Malformed y:room stream name!')
+const decodeRedisRoomStreamName = (rediskey, expectedPrefix) => {
+  const match = rediskey.match(/^(.*):(.*):(.*)$/)
+  if (match == null || match[1] !== expectedPrefix) {
+    throw new Error(`Malformed stream name! expectedPrefix="${expectedPrefix}", rediskey="${rediskey}"`)
   }
-  return { room: decodeURIComponent(match[1]), docid: decodeURIComponent(match[2]) }
+  return { room: decodeURIComponent(match[2]), docid: decodeURIComponent(match[3]) }
 }
 
 /**
  * @param {import('./storage.js').AbstractStorage} store
+ * @param {string} redisPrefix
  */
-export const createApiClient = async (store) => {
-  const a = new Api(store)
+export const createApiClient = async (store, redisPrefix) => {
+  const a = new Api(store, redisPrefix)
   await a.redis.connect()
   try {
     await a.redis.xGroupCreate(a.redisWorkerStreamName, a.redisWorkerGroupName, '0', { MKSTREAM: true })
@@ -86,9 +90,11 @@ export const createApiClient = async (store) => {
 export class Api {
   /**
    * @param {import('./storage.js').AbstractStorage} store
+   * @param {string} prefix
    */
-  constructor (store) {
+  constructor (store, prefix) {
     this.store = store
+    this.prefix = prefix
     this.consumername = random.uuidv4()
     /**
      * After this timeout, a new worker will pick up the task
@@ -98,8 +104,8 @@ export class Api {
      * Minimum lifetime of y* update messages in redis streams.
      */
     this.redisMinMessageLifetime = 60 * 1000
-    this.redisWorkerStreamName = 'y:worker'
-    this.redisWorkerGroupName = 'y:worker'
+    this.redisWorkerStreamName = this.prefix + ':worker'
+    this.redisWorkerGroupName = this.prefix + ':worker'
     this._destroyed = false
     this.redis = redis.createClient({
       url: redisUrl,
@@ -193,7 +199,7 @@ export class Api {
       }
       m[1] = protocol.messageSyncUpdate
     }
-    return this.redis.addMessage(computeRedisRoomStreamName(room, docid), m)
+    return this.redis.addMessage(computeRedisRoomStreamName(room, docid, this.prefix), m)
   }
 
   /**
@@ -209,7 +215,7 @@ export class Api {
    * @param {string} docid
    */
   async getDoc (room, docid) {
-    const ms = extractMessagesFromStreamReply(await this.redis.xRead(redis.commandOptions({ returnBuffers: true }), { key: computeRedisRoomStreamName(room, docid), id: '0' }))
+    const ms = extractMessagesFromStreamReply(await this.redis.xRead(redis.commandOptions({ returnBuffers: true }), { key: computeRedisRoomStreamName(room, docid, this.prefix), id: '0' }), this.prefix)
     const docMessages = ms.get(room)?.get(docid) || null
     const docstate = await this.store.retrieveDoc(room, docid)
     const ydoc = new Y.Doc()
@@ -271,7 +277,7 @@ export class Api {
           .xDel(this.redisWorkerStreamName, task.id)
           .exec()
       } else {
-        const { room, docid } = decodeRedisRoomStreamName(task.stream)
+        const { room, docid } = decodeRedisRoomStreamName(task.stream, this.prefix)
         const { ydoc, storeReferences, redisLastId } = await this.getDoc(room, docid)
         const lastId = math.max(number.parseInt(redisLastId.split('-')[0]), number.parseInt(task.id.split('-')[0]))
         await this.store.persistDoc(room, docid, ydoc)
@@ -297,9 +303,10 @@ export class Api {
 
 /**
  * @param {import('./storage.js').AbstractStorage} store
+ * @param {string} redisPrefix
  */
-export const createWorker = async (store) => {
-  const a = await createApiClient(store)
+export const createWorker = async (store, redisPrefix) => {
+  const a = await createApiClient(store, redisPrefix)
   return new Worker(a)
 }
 

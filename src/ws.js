@@ -55,11 +55,13 @@ class User {
 /**
  * @param {number} port
  * @param {import('./storage.js').AbstractStorage} store
+ * @param {Object} conf
+ * @param {string} conf.redisPrefix
  */
-export const createYWebsocketServer = async (port, store) => {
+export const createYWebsocketServer = async (port, store, { redisPrefix = 'y' }) => {
   const [client, subscriber] = await promise.all([
-    api.createApiClient(store),
-    createSubscriber(store)
+    api.createApiClient(store, redisPrefix),
+    createSubscriber(store, redisPrefix)
   ])
   /**
    * @param {string} stream
@@ -93,7 +95,7 @@ export const createYWebsocketServer = async (port, store) => {
     },
     open: async (ws) => {
       const user = ws.getUserData()
-      const stream = api.computeRedisRoomStreamName(user.room, 'index')
+      const stream = api.computeRedisRoomStreamName(user.room, 'index', redisPrefix)
       ws.subscribe(stream)
       user.initialRedisSubId = subscriber.subscribe(stream, redisMessageSubscriber).redisId
       const indexDoc = await client.getDoc(user.room, 'index')

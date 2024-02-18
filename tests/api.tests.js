@@ -6,6 +6,8 @@ import * as promise from 'lib0/promise'
 import * as redis from 'redis'
 import { prevClients, store } from './utils.js'
 
+const redisPrefix = 'ytests'
+
 /**
  * @param {t.TestCase} tc
  */
@@ -14,13 +16,15 @@ const createTestCase = async tc => {
   prevClients.length = 0
   const redisClient = redis.createClient({ url: api.redisUrl })
   await redisClient.connect()
-  await redisClient.flushAll()
+  // flush existing content
+  const keysToDelete = await redisClient.keys(redisPrefix + ':*')
+  await redisClient.del(keysToDelete)
   await redisClient.quit()
-  const client = await api.createApiClient(store)
+  const client = await api.createApiClient(store, redisPrefix)
   prevClients.push(client)
   const room = tc.testName
   const docid = 'main'
-  const stream = api.computeRedisRoomStreamName(room, docid)
+  const stream = api.computeRedisRoomStreamName(room, docid, redisPrefix)
   const ydoc = new Y.Doc()
   ydoc.on('update', update => {
     const m = encoding.encode(encoder => {
@@ -40,7 +44,7 @@ const createTestCase = async tc => {
 }
 
 const createWorker = async () => {
-  const worker = await api.createWorker(store)
+  const worker = await api.createWorker(store, redisPrefix)
   worker.client.redisMinMessageLifetime = 200
   worker.client.redisWorkerTimeout = 50
   prevClients.push(worker.client)
@@ -55,8 +59,8 @@ export const testUpdateApiMessages = async tc => {
   ydoc.getMap().set('key1', 'val1')
   ydoc.getMap().set('key2', 'val2')
   const { ydoc: loadedDoc } = await client.getDoc(room, docid)
-  t.assert(loadedDoc.getMap().get('key1') === 'val1')
-  t.assert(loadedDoc.getMap().get('key2') === 'val2')
+  t.compare(loadedDoc.getMap().get('key1'), 'val1')
+  t.compare(loadedDoc.getMap().get('key2'), 'val2')
 }
 
 /**

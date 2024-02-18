@@ -7,6 +7,7 @@ import * as number from 'lib0/number'
 const port = number.parseInt(env.getConf('port') || '3000')
 // postgres://username:password@host:port/database
 const postgresUrl = env.getConf('postgres')
+const redisPrefix = env.getConf('redis-prefix') || 'y'
 
 let storage
 if (postgresUrl) {
@@ -17,4 +18,4 @@ if (postgresUrl) {
   storage = createMemoryStorage()
 }
 
-createYWebsocketServer(port, storage)
+createYWebsocketServer(port, storage, { redisPrefix })

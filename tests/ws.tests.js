@@ -11,6 +11,7 @@ import { prevClients, store } from './utils.js'
 
 const port = 3000
 const wsUrl = `ws://localhost:${port}`
+const redisPrefix = 'ytests'
 
 /**
  * @param {t.TestCase} tc
@@ -24,7 +25,7 @@ const createWsClient = (tc, room) => {
 }
 
 const createWorker = async () => {
-  const worker = await api.createWorker(store)
+  const worker = await api.createWorker(store, redisPrefix)
   worker.client.redisMinMessageLifetime = 200
   worker.client.redisWorkerTimeout = 50
   prevClients.push(worker.client)
@@ -32,13 +33,13 @@ const createWorker = async () => {
 }
 
 const createServer = async () => {
-  const server = await ws.createYWebsocketServer(port, store)
+  const server = await ws.createYWebsocketServer(port, store, { redisPrefix })
   prevClients.push(server)
   return server
 }
 
 const createApiClient = async () => {
-  const client = await api.createApiClient(store)
+  const client = await api.createApiClient(store, redisPrefix)
   prevClients.push(client)
   return client
 }
@@ -51,7 +52,9 @@ const createTestCase = async tc => {
   prevClients.length = 0
   const redisClient = redis.createClient({ url: api.redisUrl })
   await redisClient.connect()
-  await redisClient.flushAll()
+  // flush existing content
+  const keysToDelete = await redisClient.keys(redisPrefix + ':*')
+  await redisClient.del(keysToDelete)
   prevClients.push({ destroy: () => redisClient.quit().then(() => {}) })
   const [apiClient, server, worker] = await promise.all([createApiClient(), createServer(), createWorker()])
   return {
@@ -84,15 +87,15 @@ export const testSyncAndCleanup = async tc => {
   const { ydoc: doc2 } = createWsClient('map')
   doc1.getMap().set('a', 1)
   await waitDocsSynced(doc1, doc2)
-  const docStreamExistsBefore = await redisClient.exists(api.computeRedisRoomStreamName(tc.testName + '-' + 'map', 'index'))
+  const docStreamExistsBefore = await redisClient.exists(api.computeRedisRoomStreamName(tc.testName + '-' + 'map', 'index', redisPrefix))
   t.assert(doc2.getMap().get('a') === 1)
   // doc3 can retrieve older changes from stream
   const { ydoc: doc3 } = createWsClient('map')
   await waitDocsSynced(doc1, doc3)
   t.assert(doc3.getMap().get('a') === 1)
   await promise.wait(worker.client.redisMinMessageLifetime * 2)
-  const docStreamExists = await redisClient.exists(api.computeRedisRoomStreamName(tc.testName + '-' + 'map', 'index'))
-  const workerLen = await redisClient.xLen('y:worker')
+  const docStreamExists = await redisClient.exists(api.computeRedisRoomStreamName(tc.testName + '-' + 'map', 'index', redisPrefix))
+  const workerLen = await redisClient.xLen(redisPrefix + ':worker')
   t.assert(!docStreamExists && docStreamExistsBefore)
   t.assert(workerLen === 0)
   // doc4 can retrieve the document again from MemoryStore
