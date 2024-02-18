@@ -11,11 +11,11 @@
   "scripts": {
     "start": "dotenv run node ./bin/server.js",
     "minio": "docker run -p 9000:9000 -p 9001:9001 quay.io/minio/minio server /data --console-address \":9001\"",
-    "dist": "rm -rf dist && rollup -c && tsc",
+    "dist": "tsc",
     "lint": "standard && tsc",
     "test": "dotenv run node tests/index.js && npm run lint",
     "test-inspect": "node --inspect-brk tests/index.js",
-    "preversion": "npm run lint && npm run dist && test -e dist/src/y-websocket.d.ts && test -e dist/y-websocket.cjs"
+    "preversion": "npm run lint && npm run dist"
   },
   "bin": {
     "y-redis-server": "./bin/server.js"
@@ -27,13 +27,9 @@
   ],
   "exports": {
     "./package.json": "./package.json",
-    "./bin/utils": "./bin/utils.js",
-    "./bin/callback": "./bin/callback.js",
     ".": {
-      "module": "./src/y-websocket.js",
-      "import": "./src/y-websocket.js",
-      "require": "./dist/y-websocket.cjs",
-      "types": "./dist/src/y-websocket.d.ts"
+      "default": "./src/index.js",
+      "types": "./dist/src/index.d.ts"
     }
   },
   "repository": {
@@ -73,7 +69,6 @@
   "devDependencies": {
     "@types/node": "^20.11.5",
     "@types/ws": "^8.5.10",
-    "rollup": "^4.9.5",
     "standard": "^17.1.0",
     "typescript": "^5.3.3",
     "ws": "^8.16.0",
