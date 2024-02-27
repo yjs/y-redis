@@ -14,7 +14,7 @@
     "dist": "tsc",
     "lint": "standard && tsc",
     "test": "dotenv run node tests/index.js && npm run lint",
-    "test-inspect": "node --inspect-brk tests/index.js",
+    "test-inspect": "dotenv run node --inspect-brk tests/index.js",
     "preversion": "npm run lint && npm run dist"
   },
   "bin": {

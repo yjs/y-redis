@@ -49,6 +49,7 @@ class User {
      * @type {string}
      */
     this.initialRedisSubId = '0'
+    this.subs = new Set()
   }
 }
 
@@ -96,6 +97,7 @@ export const createYWebsocketServer = async (port, store, { redisPrefix = 'y' })
     open: async (ws) => {
       const user = ws.getUserData()
       const stream = api.computeRedisRoomStreamName(user.room, 'index', redisPrefix)
+      user.subs.add(stream)
       ws.subscribe(stream)
       user.initialRedisSubId = subscriber.subscribe(stream, redisMessageSubscriber).redisId
       const indexDoc = await client.getDoc(user.room, 'index')
@@ -130,9 +132,8 @@ export const createYWebsocketServer = async (port, store, { redisPrefix = 'y' })
       }
     },
     close: (ws, code, message) => {
-      console.log(`closing conn. code=${code} message="${message}"`)
-      ws.getTopics().forEach(topic => {
-        console.log('successfull unsub:', ws.unsubscribe(topic))
+      console.log(`closing conn. code=${code} message="${Buffer.from(message).toString()}"`)
+      ws.getUserData().subs.forEach(topic => {
         if (app.numSubscribers(topic) === 0) {
           subscriber.unsubscribe(topic, redisMessageSubscriber)
         }

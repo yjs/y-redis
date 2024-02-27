@@ -56,7 +56,8 @@ const createTestCase = async tc => {
   const keysToDelete = await redisClient.keys(redisPrefix + ':*')
   await redisClient.del(keysToDelete)
   prevClients.push({ destroy: () => redisClient.quit().then(() => {}) })
-  const [apiClient, server, worker] = await promise.all([createApiClient(), createServer(), createWorker()])
+  const server = await createServer()
+  const [apiClient, worker] = await promise.all([createApiClient(), createWorker()])
   return {
     redisClient,
     apiClient,
@@ -111,4 +112,5 @@ export const testSyncAndCleanup = async tc => {
   const memRetrieved2 = await store.retrieveDoc(tc.testName + '-' + 'map', 'index')
   // should delete old references
   t.assert(memRetrieved2?.references.length === 1)
+  await promise.all(prevClients.reverse().map(c => c.destroy()))
 }
