@@ -11,11 +11,12 @@
   "scripts": {
     "start": "dotenv run node ./bin/server.js",
     "minio": "docker run -p 9000:9000 -p 9001:9001 quay.io/minio/minio server /data --console-address \":9001\"",
-    "dist": "tsc",
+    "dist": "rolluc -c && tsc",
     "lint": "standard && tsc",
     "test": "dotenv run node tests/index.js && npm run lint",
     "test-inspect": "dotenv run node --inspect-brk tests/index.js",
-    "preversion": "npm run lint && npm run dist"
+    "preversion": "npm run lint && npm run dist",
+    "demo": "rollup -c && concurrently -r 'rollup -wc' 'npm start' '0serve -o demo/index.html'"
   },
   "bin": {
     "y-redis-server": "./bin/server.js"
@@ -67,11 +68,21 @@
     "node": ">=16.0.0"
   },
   "devDependencies": {
+    "@codemirror/lang-javascript": "^6.2.2",
+    "@codemirror/state": "^6.4.1",
+    "@codemirror/view": "^6.24.1",
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
     "@types/node": "^20.11.5",
     "@types/ws": "^8.5.10",
+    "codemirror": "^6.0.1",
+    "concurrently": "^8.2.2",
+    "rollup": "^4.12.0",
     "standard": "^17.1.0",
     "typescript": "^5.3.3",
     "ws": "^8.16.0",
-    "y-websocket": "^1.5.3"
+    "y-codemirror.next": "^0.3.2",
+    "y-websocket": "^1.5.3",
+    "yjs": "^13.6.12"
   }
 }
