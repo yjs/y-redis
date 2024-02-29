@@ -5,6 +5,9 @@ import * as decoding from 'lib0/decoding'
 import * as array from 'lib0/array'
 import * as awarenessProtocol from 'y-protocols/awareness'
 import * as buffer from 'lib0/buffer'
+import * as logging from 'lib0/logging'
+
+const log = logging.createModuleLogger('@y/redis/protocol')
 
 export const messageSync = 0
 export const messageAwareness = 1
@@ -58,7 +61,7 @@ export const mergeMessages = messages => {
         }
       }
     } catch (e) {
-      console.error('issue parsing message', buffer.toBase64(m), e)
+      log(logging.RED, 'Error parsing message', buffer.toBase64(m), e)
     }
   })
   /**

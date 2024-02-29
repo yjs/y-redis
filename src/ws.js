@@ -6,7 +6,10 @@ import * as api from './api.js'
 import * as array from 'lib0/array'
 import * as encoding from 'lib0/encoding'
 import * as protocol from './protocol.js'
+import * as logging from 'lib0/logging'
 import { createSubscriber } from './subscriber.js'
+
+const log = logging.createModuleLogger('@y/redis/ws')
 
 /**
  * how to sync
@@ -39,6 +42,8 @@ class YWebsocketServer {
   }
 }
 
+let _idCnt = 0
+
 class User {
   /**
    * @param {string} room
@@ -50,6 +55,10 @@ class User {
      */
     this.initialRedisSubId = '0'
     this.subs = new Set()
+    /**
+     * This is just an identifier to keep track of the user for logging purposes.
+     */
+    this.id = _idCnt++
   }
 }
 
@@ -96,6 +105,7 @@ export const createYWebsocketServer = async (port, store, { redisPrefix = 'y' })
     },
     open: async (ws) => {
       const user = ws.getUserData()
+      log(() => ['client connected (uid=', user.id, ', ip=', Buffer.from(ws.getRemoteAddressAsText()).toString(), ')'])
       const stream = api.computeRedisRoomStreamName(user.room, 'index', redisPrefix)
       user.subs.add(stream)
       ws.subscribe(stream)
@@ -132,8 +142,9 @@ export const createYWebsocketServer = async (port, store, { redisPrefix = 'y' })
       }
     },
     close: (ws, code, message) => {
-      console.log(`closing conn. code=${code} message="${Buffer.from(message).toString()}"`)
-      ws.getUserData().subs.forEach(topic => {
+      const user = ws.getUserData()
+      log(() => ['client connection closed (uid=', user.id, ', code=', code, ', message="', Buffer.from(message).toString(), '")'])
+      user.subs.forEach(topic => {
         if (app.numSubscribers(topic) === 0) {
           subscriber.unsubscribe(topic, redisMessageSubscriber)
         }
@@ -148,7 +159,7 @@ export const createYWebsocketServer = async (port, store, { redisPrefix = 'y' })
   await promise.create((resolve, reject) => {
     app.listen(port, (token) => {
       if (token) {
-        console.log('Listening to port ' + port)
+        logging.print(logging.GREEN, 'Listening to port ', port)
         resolve()
       } else {
         reject(error.create('Failed to lisen to port ' + port))
