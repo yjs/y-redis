@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 
-import { createYWebsocketServer } from '../src/ws.js'
 import * as env from 'lib0/environment'
-import * as number from 'lib0/number'
+import * as api from '../src/api.js'
 
-const port = number.parseInt(env.getConf('port') || '3000')
 const postgresUrl = env.getConf('postgres')
 const redisPrefix = env.getConf('redis-prefix') || 'y'
 
@@ -17,4 +15,4 @@ if (postgresUrl) {
   storage = createMemoryStorage()
 }
 
-createYWebsocketServer(port, storage, { redisPrefix })
+api.createWorker(storage, redisPrefix)

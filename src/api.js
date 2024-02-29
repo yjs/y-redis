@@ -10,6 +10,11 @@ import * as promise from 'lib0/promise'
 import * as math from 'lib0/math'
 import * as protocol from './protocol.js'
 import * as env from 'lib0/environment'
+import * as logging from 'lib0/logging'
+import * as time from 'lib0/time'
+
+const logWorker = logging.createModuleLogger('@y/redis/api/worker')
+const logApi = logging.createModuleLogger('@y/redis/api')
 
 export const redisUrl = env.ensureConf('redis')
 
@@ -103,7 +108,7 @@ export class Api {
     /**
      * Minimum lifetime of y* update messages in redis streams.
      */
-    this.redisMinMessageLifetime = 60 * 1000
+    this.redisMinMessageLifetime = number.parseInt(env.getConf('redis-min-message-lifetime') || '60000')
     this.redisWorkerStreamName = this.prefix + ':worker'
     this.redisWorkerGroupName = this.prefix + ':worker'
     this._destroyed = false
@@ -260,7 +265,7 @@ export class Api {
         stream && tasks.push({ stream, id: m?.id })
       })
     }
-    if (tryClaimCount) {
+    if (tryClaimCount > 0) {
       const claimedTasks = await this.redis.xReadGroup(this.redisWorkerGroupName, this.consumername, { key: this.redisWorkerStreamName, id: '>' }, { COUNT: tryClaimCount, BLOCK: blockTime })
       claimedTasks?.forEach(task => {
         task.messages.forEach(message => {
@@ -269,6 +274,7 @@ export class Api {
         })
       })
     }
+    tasks.length > 0 && logWorker('Accepted tasks ', { tasks })
     await promise.all(tasks.map(async task => {
       const streamlen = await this.redis.xLen(task.stream)
       if (streamlen === 0) {
@@ -276,6 +282,7 @@ export class Api {
           .xDelIfEmpty(task.stream)
           .xDel(this.redisWorkerStreamName, task.id)
           .exec()
+        logWorker('Stream still empty, removing recurring task from queue ', { stream: task.stream })
       } else {
         const { room, docid } = decodeRedisRoomStreamName(task.stream, this.prefix)
         const { ydoc, storeReferences, redisLastId } = await this.getDoc(room, docid)
@@ -289,8 +296,10 @@ export class Api {
             .xDel(this.redisWorkerStreamName, task.id)
             .exec()
         ])
+        logWorker('Compacted stream ', { stream: task.stream, taskId: task.id, newLastId: lastId - this.redisMinMessageLifetime })
       }
     }))
+    return tasks
   }
 
   async destroy () {
@@ -316,14 +325,19 @@ export class Worker {
    */
   constructor (client) {
     this.client = client
+    logWorker('Created worker process ', { id: client.consumername })
     ;(async () => {
       while (!client._destroyed) {
         try {
-          await client.consumeWorkerQueue()
+          const tasks = await client.consumeWorkerQueue()
+          if (tasks.length === 0 || client.redisMinMessageLifetime > time.getUnixTime() - number.parseInt(tasks[0].id.split('-'))) {
+            await promise.wait(client.redisMinMessageLifetime / 2)
+          }
         } catch (e) {
           console.error(e)
         }
       }
+      logWorker('Ended worker process ', { id: client.consumername })
     })()
   }
 }
