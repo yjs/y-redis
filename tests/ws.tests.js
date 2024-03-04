@@ -9,7 +9,7 @@ import { WebsocketProvider } from 'y-websocket'
 import * as redis from 'redis'
 import { prevClients, store } from './utils.js'
 
-const port = 3000
+const port = 9999
 const wsUrl = `ws://localhost:${port}`
 const redisPrefix = 'ytests'
 
@@ -26,8 +26,8 @@ const createWsClient = (tc, room) => {
 
 const createWorker = async () => {
   const worker = await api.createWorker(store, redisPrefix)
-  worker.client.redisMinMessageLifetime = 200
-  worker.client.redisWorkerTimeout = 50
+  worker.client.redisMinMessageLifetime = 500
+  worker.client.redisWorkerTimeout = 100
   prevClients.push(worker.client)
   return worker
 }
@@ -94,7 +94,7 @@ export const testSyncAndCleanup = async tc => {
   const { ydoc: doc3 } = createWsClient('map')
   await waitDocsSynced(doc1, doc3)
   t.assert(doc3.getMap().get('a') === 1)
-  await promise.wait(worker.client.redisMinMessageLifetime * 2)
+  await promise.wait(worker.client.redisMinMessageLifetime * 3)
   const docStreamExists = await redisClient.exists(api.computeRedisRoomStreamName(tc.testName + '-' + 'map', 'index', redisPrefix))
   const workerLen = await redisClient.xLen(redisPrefix + ':worker')
   t.assert(!docStreamExists && docStreamExistsBefore)

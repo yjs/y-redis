@@ -18,7 +18,7 @@ const createTestCase = async tc => {
   await redisClient.connect()
   // flush existing content
   const keysToDelete = await redisClient.keys(redisPrefix + ':*')
-  await redisClient.del(keysToDelete)
+  keysToDelete.length > 0 && await redisClient.del(keysToDelete)
   await redisClient.quit()
   const client = await api.createApiClient(store, redisPrefix)
   prevClients.push(client)
