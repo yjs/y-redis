@@ -1,7 +1,6 @@
 import * as Y from 'yjs'
 import * as uws from 'uws'
 import * as promise from 'lib0/promise'
-import * as error from 'lib0/error'
 import * as api from './api.js'
 import * as array from 'lib0/array'
 import * as encoding from 'lib0/encoding'
@@ -36,7 +35,6 @@ class YWebsocketServer {
   }
 
   async destroy () {
-    this.app.close()
     this.subscriber.destroy()
     await this.client.destroy()
   }
@@ -47,9 +45,11 @@ let _idCnt = 0
 class User {
   /**
    * @param {string} room
+   * @param {boolean} hasWriteAccess
    */
-  constructor (room) {
+  constructor (room, hasWriteAccess) {
     this.room = room
+    this.hasWriteAccess = hasWriteAccess
     /**
      * @type {string}
      */
@@ -63,12 +63,14 @@ class User {
 }
 
 /**
- * @param {number} port
+ * @param {uws.TemplatedApp} app
+ * @param {uws.RecognizedString} pattern
  * @param {import('./storage.js').AbstractStorage} store
+ * @param {function(uws.HttpRequest): Promise<{ hasWriteAccess: boolean, room: string }>} checkAuth
  * @param {Object} conf
- * @param {string} conf.redisPrefix
+ * @param {string} [conf.redisPrefix]
  */
-export const createYWebsocketServer = async (port, store, { redisPrefix = 'y' }) => {
+export const registerYWebsocketServer = async (app, pattern, store, checkAuth, { redisPrefix = 'y' } = {}) => {
   const [client, subscriber] = await promise.all([
     api.createApiClient(store, redisPrefix),
     createSubscriber(store, redisPrefix)
@@ -88,20 +90,40 @@ export const createYWebsocketServer = async (port, store, { redisPrefix = 'y' })
       }))
     app.publish(stream, message, true, false)
   }
-  const app = uws.App({})
-  app.ws('/*', /** @type {uws.WebSocketBehavior<User>} */ ({
+  app.ws(pattern, /** @type {uws.WebSocketBehavior<User>} */ ({
     compression: uws.SHARED_COMPRESSOR,
     maxPayloadLength: 100 * 1024 * 1024,
     idleTimeout: 60,
     sendPingsAutomatically: true,
-    upgrade: (res, req, context) => {
-      res.upgrade(
-        new User(array.last(req.getUrl().split('/'))),
-        req.getHeader('sec-websocket-key'),
-        req.getHeader('sec-websocket-protocol'),
-        req.getHeader('sec-websocket-extensions'),
-        context
-      )
+    upgrade: async (res, req, context) => {
+      const url = req.getUrl()
+      const headerWsKey = req.getHeader('sec-websocket-key')
+      const headerWsProtocol = req.getHeader('sec-websocket-protocol')
+      const headerWsExtensions = req.getHeader('sec-websocket-extensions')
+      let aborted = false
+      res.onAborted(() => {
+        console.log('Upgrading client aborted', { url })
+        aborted = true
+      })
+      try {
+        const { hasWriteAccess, room } = await checkAuth(req)
+        if (aborted) return
+        res.cork(() => {
+          res.upgrade(
+            new User(room, hasWriteAccess),
+            headerWsKey,
+            headerWsProtocol,
+            headerWsExtensions,
+            context
+          )
+        })
+      } catch (err) {
+        console.log(`Failed to auth to endpoint ${url}`, err)
+        if (aborted) return
+        res.cork(() => {
+          res.writeStatus('401 Unauthorized').end('Unauthorized')
+        })
+      }
     },
     open: async (ws) => {
       const user = ws.getUserData()
@@ -125,9 +147,11 @@ export const createYWebsocketServer = async (port, store, { redisPrefix = 'y' })
       }
     },
     message: (ws, messageBuffer) => {
-      // it is important to copy the data here
-      const message = Buffer.from(messageBuffer.slice(0, messageBuffer.byteLength))
       const user = ws.getUserData()
+      // don't read any messages from users without write access
+      if (!user.hasWriteAccess) return
+      // It is important to copy the data here
+      const message = Buffer.from(messageBuffer.slice(0, messageBuffer.byteLength))
       if ( // filter out messages that we simply want to propagate to all clients
         // sync update or sync step 2
         (message[0] === protocol.messageSync && (message[1] === protocol.messageSyncUpdate || message[1] === protocol.messageSyncStep2)) ||
@@ -143,6 +167,7 @@ export const createYWebsocketServer = async (port, store, { redisPrefix = 'y' })
     },
     close: (ws, code, message) => {
       const user = ws.getUserData()
+      console.log('closing?')
       log(() => ['client connection closed (uid=', user.id, ', code=', code, ', message="', Buffer.from(message).toString(), '")'])
       user.subs.forEach(topic => {
         if (app.numSubscribers(topic) === 0) {
@@ -151,20 +176,5 @@ export const createYWebsocketServer = async (port, store, { redisPrefix = 'y' })
       })
     }
   }))
-
-  app.any('/*', (res, _req) => {
-    res.end('<h1>y-redis</h1>')
-  })
-
-  await promise.create((resolve, reject) => {
-    app.listen(port, (token) => {
-      if (token) {
-        logging.print(logging.GREEN, 'Listening to port ', port)
-        resolve()
-      } else {
-        reject(error.create('Failed to lisen to port ' + port))
-      }
-    })
-  })
   return new YWebsocketServer(app, client, subscriber)
 }

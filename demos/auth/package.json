@@ -1,0 +1,16 @@
+{
+  "name": "y-redis-auth-demo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "dist": "rollup -c",
+    "start": "npm run dist && dotenv -f ../../.env run node server.js",
+    "debug": "dotenv -f ../../.env run node --inspect-brk server.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+  }
+}

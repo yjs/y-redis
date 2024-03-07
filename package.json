@@ -13,7 +13,7 @@
     "start:server": "dotenv run node ./bin/server.js",
     "start:worker": "dotenv run node ./bin/worker.js",
     "minio": "docker run -p 9000:9000 -p 9001:9001 quay.io/minio/minio server /data --console-address \":9001\"",
-    "dist": "rolluc -c && tsc",
+    "dist": "rollup -c && tsc",
     "lint": "standard && tsc",
     "test": "dotenv run node tests/index.js && npm run lint",
     "test-inspect": "dotenv run node --inspect-brk tests/index.js",
