@@ -1,0 +1,59 @@
+import * as uws from 'uws'
+import * as jwt from 'lib0/crypto/jwt'
+import * as ecdsa from 'lib0/crypto/ecdsa'
+import * as json from 'lib0/json'
+import * as time from 'lib0/time'
+import * as env from 'lib0/environment'
+import * as logging from 'lib0/logging'
+import * as error from 'lib0/error'
+import * as promise from 'lib0/promise'
+
+const appName = 'Auth-Server-Example'
+const authPrivateKey = await ecdsa.importKeyJwk(json.parse(env.ensureConf('auth-private-key')))
+const port = 4444
+
+const app = uws.App({})
+
+// This example server always grants read-write permission to all requests.
+// Modify it to your own needs or implement the same API in your own backend!
+app.get('/auth/token', async (res, req) => {
+  let aborted = false
+  res.onAborted(() => {
+    aborted = true
+  })
+  const token = await jwt.encodeJwt(authPrivateKey, {
+    iss: appName,
+    exp: time.getUnixTime() + 1000 * 60 * 60, // access expires in an hour
+    yuserid: 'user1'
+  })
+  if (aborted) return
+  res.cork(() => {
+    res.end(token)
+  })
+})
+
+app.get('/auth/perm/:room/:userid', async (res, req) => {
+  const yroom = req.getParameter(0)
+  const yuserid = req.getParameter(1)
+  res.end(json.stringify({
+    yroom,
+    yaccess: 'rw',
+    yuserid
+  }))
+})
+
+/**
+ * Resolves when the server started.
+ */
+export const authServerStarted = promise.create((resolve, reject) => {
+  app.listen(port, (token) => {
+    if (token) {
+      logging.print(logging.GREEN, `[${appName}] Listening to port ${port}`)
+      resolve()
+    } else {
+      const err = error.create(`[${appName}] Failed to lisen to port ${port}`)
+      reject(err)
+      throw err
+    }
+  })
+})

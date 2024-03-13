@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 
-import { createYWebsocketServer } from '../src/ws.js'
-import * as env from 'lib0/environment'
 import * as number from 'lib0/number'
+import * as env from 'lib0/environment'
+import * as server from '../src/server.js'
 
-const port = number.parseInt(env.getConf('port') || '3000')
+const port = number.parseInt(env.getConf('port') || '3002')
 const postgresUrl = env.getConf('postgres')
-const redisPrefix = env.getConf('redis-prefix') || 'y'
+const checkPermCallbackUrl = env.ensureConf('AUTH_PERM_CALLBACK')
 
-let storage
+let store
 if (postgresUrl) {
   const { createPostgresStorage } = await import('../src/storage/postgres.js')
-  storage = await createPostgresStorage()
+  store = await createPostgresStorage()
 } else {
   const { createMemoryStorage } = await import('../src/storage/memory.js')
-  storage = createMemoryStorage()
+  store = createMemoryStorage()
 }
 
-createYWebsocketServer(port, storage, { redisPrefix })
+server.createYWebsocketServer({ port, store, checkPermCallbackUrl })

@@ -46,8 +46,9 @@ class User {
   /**
    * @param {string} room
    * @param {boolean} hasWriteAccess
+   * @param {string} userid identifies the user globally.
    */
-  constructor (room, hasWriteAccess) {
+  constructor (room, hasWriteAccess, userid) {
     this.room = room
     this.hasWriteAccess = hasWriteAccess
     /**
@@ -59,6 +60,12 @@ class User {
      * This is just an identifier to keep track of the user for logging purposes.
      */
     this.id = _idCnt++
+    /**
+     * Identifies the User globally.
+     * Note that several clients can have the same userid (e.g. if a user opened several browser
+     * windows)
+     */
+    this.userid = userid
   }
 }
 
@@ -66,7 +73,7 @@ class User {
  * @param {uws.TemplatedApp} app
  * @param {uws.RecognizedString} pattern
  * @param {import('./storage.js').AbstractStorage} store
- * @param {function(uws.HttpRequest): Promise<{ hasWriteAccess: boolean, room: string }>} checkAuth
+ * @param {function(uws.HttpRequest): Promise<{ hasWriteAccess: boolean, room: string, userid: string }>} checkAuth
  * @param {Object} conf
  * @param {string} [conf.redisPrefix]
  */
@@ -106,11 +113,11 @@ export const registerYWebsocketServer = async (app, pattern, store, checkAuth, {
         aborted = true
       })
       try {
-        const { hasWriteAccess, room } = await checkAuth(req)
+        const { hasWriteAccess, room, userid } = await checkAuth(req)
         if (aborted) return
         res.cork(() => {
           res.upgrade(
-            new User(room, hasWriteAccess),
+            new User(room, hasWriteAccess, userid),
             headerWsKey,
             headerWsProtocol,
             headerWsExtensions,
@@ -158,6 +165,7 @@ export const registerYWebsocketServer = async (app, pattern, store, checkAuth, {
         // awareness update
         message[0] === protocol.messageAwareness
       ) {
+        console.log('adding message', Array.from(message))
         client.addMessage(user.room, 'index', message)
       } else if (message[0] === protocol.messageSync && message[1] === protocol.messageSyncStep1) { // sync step 1
         // can be safely ignored because we send the full initial state at the beginning

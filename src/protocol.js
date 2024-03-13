@@ -110,5 +110,5 @@ export const encodeSyncStep2 = diff => encoding.encode(encoder => {
  */
 export const encodeAwarenessUpdate = (awareness, clients) => encoding.encode(encoder => {
   encoding.writeVarUint(encoder, messageAwareness)
-  encoding.writeUint8Array(encoder, awarenessProtocol.encodeAwarenessUpdate(awareness, clients))
+  encoding.writeVarUint8Array(encoder, awarenessProtocol.encodeAwarenessUpdate(awareness, clients))
 })

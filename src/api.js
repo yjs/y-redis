@@ -65,16 +65,16 @@ const extractMessagesFromStreamReply = (streamReply, prefix) => {
  * @param {string} docid
  * @param {string} prefix
  */
-export const computeRedisRoomStreamName = (room, docid, prefix) => `${prefix}:${encodeURIComponent(room)}:${encodeURIComponent(docid)}`
+export const computeRedisRoomStreamName = (room, docid, prefix) => `${prefix}:room:${encodeURIComponent(room)}:${encodeURIComponent(docid)}`
 
 /**
  * @param {string} rediskey
  * @param {string} expectedPrefix
  */
 const decodeRedisRoomStreamName = (rediskey, expectedPrefix) => {
-  const match = rediskey.match(/^(.*):(.*):(.*)$/)
+  const match = rediskey.match(/^(.*):room:(.*):(.*)$/)
   if (match == null || match[1] !== expectedPrefix) {
-    throw new Error(`Malformed stream name! expectedPrefix="${expectedPrefix}", rediskey="${rediskey}"`)
+    throw new Error(`Malformed stream name! prefix="${match?.[1]}" expectedPrefix="${expectedPrefix}", rediskey="${rediskey}"`)
   }
   return { room: decodeURIComponent(match[2]), docid: decodeURIComponent(match[3]) }
 }
@@ -330,7 +330,7 @@ export class Worker {
       while (!client._destroyed) {
         try {
           const tasks = await client.consumeWorkerQueue()
-          if (tasks.length === 0 || client.redisMinMessageLifetime > time.getUnixTime() - number.parseInt(tasks[0].id.split('-'))) {
+          if (tasks.length === 0 || client.redisMinMessageLifetime > time.getUnixTime() - number.parseInt(tasks[0].id.split('-')[0])) {
             await promise.wait(client.redisMinMessageLifetime / 2)
           }
         } catch (e) {

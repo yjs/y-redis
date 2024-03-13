@@ -15,7 +15,7 @@
     "minio": "docker run -p 9000:9000 -p 9001:9001 quay.io/minio/minio server /data --console-address \":9001\"",
     "dist": "rollup -c && tsc",
     "lint": "standard && tsc",
-    "test": "dotenv run node tests/index.js && npm run lint",
+    "test": "dotenv run node tests/index.js",
     "test-inspect": "dotenv run node --inspect-brk tests/index.js",
     "preversion": "npm run lint && npm run dist",
     "demo": "rollup -c && concurrently -r 'rollup -wc' 'npm start' '0serve -o demo/index.html'"

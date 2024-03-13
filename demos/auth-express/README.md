@@ -18,10 +18,10 @@ with a JWT containing the room and access type (read-only or read-write):
   "exp": Date.now() + 1000 * 60 * 60 * 24, 
   // The "room" that the user is given permission to
   "yroom": "authorized room-name",
-   // Set access to either 'rw' or 'readonly'
+  // Set access to either 'rw' or 'readonly'
   "yaccess": 'rw', 
-   // Associate the access-jwt with a unique user identifier
-   // This can be used to revoke access
+  // Associate the access-jwt with a unique user identifier
+  // This can be used to revoke access
   "yuserid": 'user1'
 }
 ```

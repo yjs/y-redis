@@ -25,8 +25,12 @@ export const usercolors = [
 
 export const userColor = usercolors[random.uint32() % usercolors.length]
 
+const room = 'redis-demo-app'
+const authTokenRequest = await fetch(`http://${location.host}/auth/token`)
+const authToken = await authTokenRequest.text()
+
 const ydoc = new Y.Doc()
-const provider = new WebsocketProvider(`ws://${location.host}/ws`, 'codemirror6-demo', ydoc)
+const provider = new WebsocketProvider('ws://localhost:3002', room, ydoc, { params: { yauth: authToken } })
 const ytext = ydoc.getText('codemirror')
 
 provider.awareness.setLocalStateField('user', {
