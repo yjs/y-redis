@@ -1,151 +1,62 @@
 
-# y-redis :tophat: WIP!
+# y-redis :tophat:
 > y-websocket compatible backend using Redis for scalability
 
-The Websocket Provider implements a classical client server model. Clients connect to a single endpoint over Websocket. The server distributes awareness information and document updates among clients.
+y-redis is an alternative backend for y-websocket. It only requires a redis
+instance and a storage provider (S3 or Postgres-compatible). 
 
-The Websocket Provider is a solid choice if you want a central source that handles authentication and authorization. Websockets also send header information and cookies, so you can use existing authentication mechanisms with this server.
-
-* **Memory efficient:** The server only distributes updates and syncs with
-clients. State is stored in redis streams.
+* **Memory efficient:** The server doesn't maintain a Y.Doc in-memory. It
+streams updates through redis. The Yjs document is only loaded to memory for the
+initial sync. 
 * **Scalable:** You can start as many y-redis instances as you want to handle
-your clients.
-* **Fault tolerant:** The websocket server doesn't block the thread anymore when
-  large updates need to be merged or distributed. Time-intensive tasks happen in
-  a separate thread.
-* **Works everywhere:** Node, Bun, Deno, Kupernetes (see *Helm Chart*). 
+a fluctuating number of clients. No coordination is needed.
+- **Auth:** y-redis works together with your existing infrastructure to
+authenticate clients and check whether a client has read-only / read-write
+access to a document.
+- **Database agnostic:** You can persist documents in S3-compatible backends, in
+Postgres, or implement your own storage provider.
 
-## Quick Start
+### Components
 
-### Install dependencies
+The y-redis **server component** is responsible for accepting
+websocket-connections and distributing the updates on redis.
 
-```sh
-npm i y-websocket
-```
+The separate y-redis **worker component** is responsible for extracting data
+from the redis cache to a persistent database like S3 or Postgres. Once the data
+is persisted, the worker component cleans up stale data in redis.
 
-### Start a y-websocket server
+You are responsible for providing a REST backend that y-redis will call to check
+whether a specific client (authenticated via a JWT token) has access to a
+specific room / document.
 
-This repository implements a basic server that you can adopt to your specific use-case. [(source code)](./bin/)
+## Professional support
 
-Start a y-websocket server:
+As this server implementation is clearly intended for startups & large companies
+that want a scalable backend to their collaborative product, I thought about
+commercializing this piece of software. Ultimately I decided against it, because
+permissively licensed software like this has more prositive impact on humanity
+overall. However it does make sense to cantact me to evaluate whether this is
+the right approach for you.
 
-```sh
-HOST=localhost PORT=1234 npx y-websocket
-```
+Please support my work by [becoming a
+sponsor](https://github.com/sponsors/dmonad) or hiring me as a consultant for
+professional support and security updates.
 
-### Client Code:
+### Features
 
-```js
-import * as Y from 'yjs'
-import { WebsocketProvider } from 'y-websocket'
+I'm looking for sponsors that want to sponsor the following work:
 
-const doc = new Y.Doc()
-const wsProvider = new WebsocketProvider('ws://localhost:1234', 'my-roomname', doc)
+- Ability to kick out users when permissions on a document changed
+- Implement configurable docker containers for y-redis server & worker
+- Implement helm chart
+- More exhaustive logging and reporting of possible issues
+- More exhaustive testing
+- More exhaustive documentation
+- Add support for Bun and Deno
+- Perform expensive tasks (computing sync messages) in separate threads
 
-wsProvider.on('status', event => {
-  console.log(event.status) // logs "connected" or "disconnected"
-})
-```
-
-#### Client Code in Node.js
-
-The WebSocket provider requires a [`WebSocket`](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket) object to create connection to a server. You can polyfill WebSocket support in Node.js using the [`ws` package](https://www.npmjs.com/package/ws).
-
-```js
-const wsProvider = new WebsocketProvider('ws://localhost:1234', 'my-roomname', doc, { WebSocketPolyfill: require('ws') })
-```
-
-## API
-
-```js
-import { WebsocketProvider } from 'y-websocket'
-```
-
-<dl>
-  <b><code>wsProvider = new WebsocketProvider(serverUrl: string, room: string, ydoc: Y.Doc [, wsOpts: WsOpts])</code></b>
-  <dd>Create a new websocket-provider instance. As long as this provider, or the connected ydoc, is not destroyed, the changes will be synced to other clients via the connected server. Optionally, you may specify a configuration object. The following default values of wsOpts can be overwritten. </dd>
-</dl>
-
-```js
-wsOpts = {
-  // Set this to `false` if you want to connect manually using wsProvider.connect()
-  connect: true,
-  // Specify a query-string that will be url-encoded and attached to the `serverUrl`
-  // I.e. params = { auth: "bearer" } will be transformed to "?auth=bearer"
-  params: {}, // Object<string,string>
-  // You may polyill the Websocket object (https://developer.mozilla.org/en-US/docs/Web/API/WebSocket).
-  // E.g. In nodejs, you could specify WebsocketPolyfill = require('ws')
-  WebsocketPolyfill: Websocket,
-  // Specify an existing Awareness instance - see https://github.com/yjs/y-protocols
-  awareness: new awarenessProtocol.Awareness(ydoc),
-  // Specify the maximum amount to wait between reconnects (we use exponential backoff).
-  maxBackoffTime: 2500
-}
-```
-
-<dl>
-  <b><code>wsProvider.wsconnected: boolean</code></b>
-  <dd>True if this instance is currently connected to the server.</dd>
-  <b><code>wsProvider.wsconnecting: boolean</code></b>
-  <dd>True if this instance is currently connecting to the server.</dd>
-  <b><code>wsProvider.shouldConnect: boolean</code></b>
-  <dd>If false, the client will not try to reconnect.</dd>
-  <b><code>wsProvider.bcconnected: boolean</code></b>
-  <dd>True if this instance is currently communicating to other browser-windows via BroadcastChannel.</dd>
-  <b><code>wsProvider.synced: boolean</code></b>
-  <dd>True if this instance is currently connected and synced with the server.</dd>
-  <b><code>wsProvider.disconnect()</code></b>
-  <dd>Disconnect from the server and don't try to reconnect.</dd>
-  <b><code>wsProvider.connect()</code></b>
-  <dd>Establish a websocket connection to the websocket-server. Call this if you recently disconnected or if you set wsOpts.connect = false.</dd>
-  <b><code>wsProvider.destroy()</code></b>
-  <dd>Destroy this wsProvider instance. Disconnects from the server and removes all event handlers.</dd>
-  <b><code>wsProvider.on('sync', function(isSynced: boolean))</code></b>
-  <dd>Add an event listener for the sync event that is fired when the client received content from the server.</dd>
-  <b><code>wsProvider.on('status', function({ status: 'disconnected' | 'connecting' | 'connected' }))</code></b>
-  <dd>Receive updates about the current connection status.</dd>
-  <b><code>wsProvider.on('connection-close', function(WSClosedEvent))</code></b>
-  <dd>Fires when the underlying websocket connection is closed. It forwards the websocket event to this event handler.</dd>
-  <b><code>wsProvider.on('connection-error', function(WSErrorEvent))</code></b>
-  <dd>Fires when the underlying websocket connection closes with an error. It forwards the websocket event to this event handler.</dd>
-</dl>
-
-## Websocket Server
-
-Start a y-websocket server:
-
-```sh
-HOST=localhost PORT=1234 npx y-websocket
-```
-
-Since npm symlinks the `y-websocket` executable from your local `./node_modules/.bin` folder, you can simply run npx. The `PORT` environment variable already defaults to 1234, and `HOST` defaults to `localhost`.
-
-### Websocket Server with Persistence
-
-Persist document updates in a LevelDB database.
-
-See [LevelDB Persistence](https://github.com/yjs/y-leveldb) for more info.
-
-```sh
-HOST=localhost PORT=1234 YPERSISTENCE=./dbDir node ./node_modules/y-websocket/bin/server.js
-```
-
-### Websocket Server with HTTP callback
-
-Send a debounced callback to an HTTP server (`POST`) on document update. Note that this implementation doesn't implement a retry logic in case the `CALLBACK_URL` does not work.
-
-Can take the following ENV variables:
-
-* `CALLBACK_URL` : Callback server URL
-* `CALLBACK_DEBOUNCE_WAIT` : Debounce time between callbacks (in ms). Defaults to 2000 ms
-* `CALLBACK_DEBOUNCE_MAXWAIT` : Maximum time to wait before callback. Defaults to 10 seconds
-* `CALLBACK_TIMEOUT` : Timeout for the HTTP call. Defaults to 5 seconds
-* `CALLBACK_OBJECTS` : JSON of shared objects to get data (`'{"SHARED_OBJECT_NAME":"SHARED_OBJECT_TYPE}'`)
-
-```sh
-CALLBACK_URL=http://localhost:3000/ CALLBACK_OBJECTS='{"prosemirror":"XmlFragment"}' npm start
-```
-This sends a debounced callback to `localhost:3000` 2 seconds after receiving an update (default `DEBOUNCE_WAIT`) with the data of an XmlFragment named `"prosemirror"` in the body.
+If you are interested in sponsoring some of this work, please send a mail to
+<kevin.jahns@pm.me>
 
 ## License
 

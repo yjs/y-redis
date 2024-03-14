@@ -165,7 +165,6 @@ export const registerYWebsocketServer = async (app, pattern, store, checkAuth, {
         // awareness update
         message[0] === protocol.messageAwareness
       ) {
-        console.log('adding message', Array.from(message))
         client.addMessage(user.room, 'index', message)
       } else if (message[0] === protocol.messageSync && message[1] === protocol.messageSyncStep1) { // sync step 1
         // can be safely ignored because we send the full initial state at the beginning

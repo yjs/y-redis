@@ -1,8 +1,12 @@
+import * as Y from 'yjs'
 import express from 'express'
+import formidable from 'formidable'
 import * as jwt from 'lib0/crypto/jwt'
 import * as time from 'lib0/time'
 import * as ecdsa from 'lib0/crypto/ecdsa'
 import * as env from 'lib0/environment'
+import * as fs from 'fs/promises'
+import * as promise from 'lib0/promise'
 
 const app = express()
 const port = 4444
@@ -13,6 +17,32 @@ export const authPrivateKey = await ecdsa.importKeyJwk(JSON.parse(env.ensureConf
 export const authPublicKey = await ecdsa.importKeyJwk(JSON.parse(env.ensureConf('auth-public-key')))
 
 const appName = 'my-express-app'
+
+app.put('/ydoc/:room', async (req, res, next) => {
+  const room = req.params.room
+  const ydocUpdate = await promise.create((resolve, reject) => {
+    const form = formidable({})
+    form.parse(req, (err, _fields, files) => {
+      if (err) {
+        next(err)
+        reject(err)
+        return
+      }
+      if (files.ydoc) {
+        // formidable writes the data to a file by default. This might be a good idea for your
+        // application. Check the documentation to find a non-temporary location for the read file.
+        // You should probably delete it if it is no longer being used.
+        const file = files.ydoc[0]
+        // we are just going to log the content and delete the temporary file
+        fs.readFile(file.filepath).then(resolve, reject)
+      }
+    })
+  })
+  const ydoc = new Y.Doc()
+  Y.applyUpdateV2(ydoc, ydocUpdate)
+  console.log(`codemirror content in room "${room}" updated: "${ydoc.getText('codemirror').toString().replaceAll('\n', '\\n')}"`)
+  res.sendStatus(200)
+})
 
 // This example server always grants read-write permission to all requests.
 // Modify it to your own needs or implement the same API in your own backend!

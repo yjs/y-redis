@@ -18,6 +18,11 @@ const logApi = logging.createModuleLogger('@y/redis/api')
 
 export const redisUrl = env.ensureConf('redis')
 
+let ydocUpdateCallback = env.getConf('ydoc-update-callback')
+if (ydocUpdateCallback?.slice(-1) !== '/') {
+  ydocUpdateCallback += '/'
+}
+
 /**
  * @param {string} a
  * @param {string} b
@@ -297,6 +302,21 @@ export class Api {
             .exec()
         ])
         logWorker('Compacted stream ', { stream: task.stream, taskId: task.id, newLastId: lastId - this.redisMinMessageLifetime })
+        try {
+          if (ydocUpdateCallback) {
+            // call YDOC_UPDATE_CALLBACK here
+            const formData = new FormData()
+            // @todo only convert ydoc to updatev2 once
+            formData.append('ydoc', new Blob([Y.encodeStateAsUpdateV2(ydoc)]))
+            console.log('sending ydoc update to callbackurl')
+            const res = await fetch(new URL(room, ydocUpdateCallback), { body: formData, method: 'PUT' })
+            if (!res.ok) {
+              console.error(`Issue sending data to YDOC_UPDATE_CALLBACK. status="${res.status}" statusText="${res.statusText}"`)
+            }
+          }
+        } catch (e) {
+          console.error(e)
+        }
       }
     }))
     return tasks
