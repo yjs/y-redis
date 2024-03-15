@@ -1,6 +1,7 @@
 
-# y-redis :tophat:
-> y-websocket compatible backend using Redis for scalability
+# y-redis :tophat: 
+> y-websocket compatible backend using Redis for scalability. **This is beta
+> software!**
 
 y-redis is an alternative backend for y-websocket. It only requires a redis
 instance and a storage provider (S3 or Postgres-compatible). 
