@@ -110,12 +110,14 @@ cp .env.template .env
 nano .env
 ```
 
-Now make sure to configure the environment variables correctly. Then run the
-separate components in different terminals:
+Then you can run the different components in separate terminals:
 
 ```sh
-npm start # starts a server and a single worker
-# run this in a separate terminal:
+# run the server
+npm start:server
+# run a single worker in a separate terminal
+npm start:worker
+# start the express server in a separater terminal
 cd demos/auth-express
 npm i
 npm start

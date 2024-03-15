@@ -18,6 +18,8 @@ export const authPublicKey = await ecdsa.importKeyJwk(JSON.parse(env.ensureConf(
 
 const appName = 'my-express-app'
 
+// This endpoint is called in regular intervals when the document changes.
+// The request contains a multi-part formdata field that can be read, for example, with formidable:
 app.put('/ydoc/:room', async (req, res, next) => {
   const room = req.params.room
   const ydocUpdate = await promise.create((resolve, reject) => {
@@ -50,13 +52,13 @@ app.get('/auth/token', async (_req, res) => {
   const token = await jwt.encodeJwt(authPrivateKey, {
     iss: appName,
     exp: time.getUnixTime() + 1000 * 60 * 60, // access expires in an hour
-    yuserid: 'user1'
+    yuserid: 'user1' // associate the client with a unique id that can will be used to check permissions
   })
   res.send(token)
 })
 
 // This api is called to check whether a specific user (identified by the unique "yuserid") has
-// access to a specific room. This api is called by the yredis server, not the client.
+// access to a specific room. This rest endpoint is called by the yredis server, not the client.
 app.get('/auth/perm/:room/:userid', async (req, res) => {
   const yroom = req.params.room
   const yuserid = req.params.userid
