@@ -19,7 +19,7 @@ const logApi = logging.createModuleLogger('@y/redis/api')
 export const redisUrl = env.ensureConf('redis')
 
 let ydocUpdateCallback = env.getConf('ydoc-update-callback')
-if (ydocUpdateCallback?.slice(-1) !== '/') {
+if (ydocUpdateCallback != null && ydocUpdateCallback.slice(-1) !== '/') {
   ydocUpdateCallback += '/'
 }
 
@@ -303,7 +303,8 @@ export class Api {
         ])
         logWorker('Compacted stream ', { stream: task.stream, taskId: task.id, newLastId: lastId - this.redisMinMessageLifetime })
         try {
-          if (ydocUpdateCallback) {
+          if (ydocUpdateCallback != null) {
+            console.log({ ydocUpdateCallback })
             // call YDOC_UPDATE_CALLBACK here
             const formData = new FormData()
             // @todo only convert ydoc to updatev2 once

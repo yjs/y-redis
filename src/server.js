@@ -52,8 +52,7 @@ export const createYWebsocketServer = async ({
     if (userToken.yuserid == null) {
       throw new Error('Missing userid in user token!')
     }
-
-    const permUrl = new URL(`${room}/${userToken.yuserid}/`, checkPermCallbackUrl)
+    const permUrl = new URL(`${room}/${userToken.yuserid}`, checkPermCallbackUrl)
     const perm = await fetch(permUrl).then(req => req.json())
     return { hasWriteAccess: perm.yaccess === 'rw', room, userid: perm.yuserid || '' }
   }, { redisPrefix })

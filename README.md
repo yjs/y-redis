@@ -18,16 +18,18 @@ Postgres, or implement your own storage provider.
 
 ### Components
 
-The y-redis **server component** is responsible for accepting
+The y-redis **server component** (`/bin/server.js`) is responsible for accepting
 websocket-connections and distributing the updates on redis.
 
-The separate y-redis **worker component** is responsible for extracting data
-from the redis cache to a persistent database like S3 or Postgres. Once the data
-is persisted, the worker component cleans up stale data in redis.
+The separate y-redis **worker component** (`/bin/worker.js`) is responsible for
+extracting data from the redis cache to a persistent database like S3 or
+Postgres. Once the data is persisted, the worker component cleans up stale data
+in redis.
 
 You are responsible for providing a REST backend that y-redis will call to check
 whether a specific client (authenticated via a JWT token) has access to a
-specific room / document.
+specific room / document. An example server can be found in
+`/bin/auth-server-example.js`
 
 ## Professional support
 
@@ -52,11 +54,73 @@ I'm looking for sponsors that want to sponsor the following work:
 - More exhaustive logging and reporting of possible issues
 - More exhaustive testing
 - More exhaustive documentation
-- Add support for Bun and Deno
+- Support for Bun and Deno
 - Perform expensive tasks (computing sync messages) in separate threads
 
 If you are interested in sponsoring some of this work, please send a mail to
 <kevin.jahns@pm.me>
+
+# Quick Start
+
+Components are configured via environment variables. It makes sense to start by
+cloning y-redis and getting one of the demos to work.
+
+#### Start a redis instance
+
+Setup redis on your computer. Follow the [official
+documentation](https://redis.io/docs/install/install-redis/). This is
+recommended if you want to debug the redis stream.
+
+Alternatively, simply run redis via docker:
+
+```sh
+# start the official redis docker container on port 6379
+docker run -p 6379:6379 redis
+# or `npm run redis`
+```
+
+#### Start an S3 instance
+
+Setup an S3-compatible store at your favorite cloud provider.
+
+Alternatively, simply run a *minio* store as a docker container:
+
+```sh
+docker run -p 9000:9000 -p 9001:9001 quay.io/minio/minio server /data --console-address \":9001\"
+# or `npm run minio`
+```
+
+#### Clone demo
+
+```sh
+git clone https://github.com/yjs/y-redis.git
+cd y-redis
+npm i
+```
+
+All features are configurable using environment variables. For local development
+it makes sense to setup a `.env` file, that stores project-specific secrets. Use
+`.env.template` as a template to setup environment variables. Make sure to read
+the documentation carefully and configure every single variable.
+
+```sh
+# setup environment variables
+cp .env.template .env
+nano .env
+```
+
+Now make sure to configure the environment variables correctly. Then run the
+separate components in different terminals:
+
+```sh
+npm start # starts a server and a single worker
+# run this in a separate terminal:
+cd demos/auth-express
+npm i
+npm start
+```
+
+Open [`http://localhost:4444`](http://localhost:4444) in a browser.
 
 ## License
 
