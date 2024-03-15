@@ -45,7 +45,7 @@ Please support my work by [becoming a
 sponsor](https://github.com/sponsors/dmonad) or hiring me as a consultant for
 professional support and security updates.
 
-### Features
+### Missing Features
 
 I'm looking for sponsors that want to sponsor the following work:
 
@@ -65,6 +65,9 @@ If you are interested in sponsoring some of this work, please send a mail to
 
 Components are configured via environment variables. It makes sense to start by
 cloning y-redis and getting one of the demos to work.
+
+Note: If you want to use any of the docker commands, feel free to use podman (a
+more modern alternative) instead.
 
 #### Start a redis instance
 
@@ -114,9 +117,9 @@ Then you can run the different components in separate terminals:
 
 ```sh
 # run the server
-npm start:server
+npm run start:server
 # run a single worker in a separate terminal
-npm start:worker
+npm run start:worker
 # start the express server in a separater terminal
 cd demos/auth-express
 npm i

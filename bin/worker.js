@@ -3,16 +3,28 @@
 import * as env from 'lib0/environment'
 import * as api from '../src/api.js'
 
-const postgresUrl = env.getConf('postgres')
 const redisPrefix = env.getConf('redis-prefix') || 'y'
+const postgresUrl = env.getConf('postgres')
+const s3Endpoint = env.getConf('s3-endpoint')
 
-let storage
-if (postgresUrl) {
+let store
+if (s3Endpoint) {
+  console.log('using s3 store')
+  const { createS3Storage } = await import('../src/storage/s3.js')
+  const bucketName = 'ydocs'
+  store = createS3Storage(bucketName)
+  try {
+    // make sure the bucket exists
+    await store.client.makeBucket(bucketName)
+  } catch (e) {}
+} else if (postgresUrl) {
+  console.log('using postgres store')
   const { createPostgresStorage } = await import('../src/storage/postgres.js')
-  storage = await createPostgresStorage()
+  store = await createPostgresStorage()
 } else {
+  console.log('ATTENTION! using in-memory store')
   const { createMemoryStorage } = await import('../src/storage/memory.js')
-  storage = createMemoryStorage()
+  store = createMemoryStorage()
 }
 
-api.createWorker(storage, redisPrefix)
+api.createWorker(store, redisPrefix)
