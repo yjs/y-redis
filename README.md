@@ -20,7 +20,7 @@ Postgres, or implement your own storage provider.
 ### Components
 
 The y-redis **server component** (`/bin/server.js`) is responsible for accepting
-websocket-connections and distributing the updates on redis.
+websocket-connections and distributing the updates via redis.
 
 The separate y-redis **worker component** (`/bin/worker.js`) is responsible for
 extracting data from the redis cache to a persistent database like S3 or
@@ -29,17 +29,18 @@ in redis.
 
 You are responsible for providing a REST backend that y-redis will call to check
 whether a specific client (authenticated via a JWT token) has access to a
-specific room / document. An example server can be found in
-`/bin/auth-server-example.js`
+specific room / document. Example servers can be found in
+`/bin/auth-server-example.js` and `/demos/auth-express/server.js`.
 
 ## Professional support
 
 As this server implementation is clearly intended for startups & large companies
 that want a scalable backend to their collaborative product, I thought about
 commercializing this piece of software. Ultimately I decided against it, because
-permissively licensed software like this has more positive impact on humanity.
-However, it does make sense to cantact me for a consulting call to evaluate
-whether this is the right approach for you.
+permissively licensed software like this has more positive impact on humanity
+overall. However, it does make sense to cantact me for a consulting call to
+evaluate whether this is the right approach for you. Any (small) contribution is
+highly appreciated.
 
 Please support my work by [becoming a
 sponsor](https://github.com/sponsors/dmonad) or hiring me as a consultant for
@@ -50,11 +51,11 @@ professional support and security updates.
 I'm looking for sponsors that want to sponsor the following work:
 
 - Ability to kick out users when permissions on a document changed
-- Implement configurable docker containers for y-redis server & worker
-- Implement helm chart
+- Configurable docker containers for y-redis server & worker
+- Helm chart
 - More exhaustive logging and reporting of possible issues
 - More exhaustive testing
-- More exhaustive documentation
+- Better documentation & more documentation for specific use-cases
 - Support for Bun and Deno
 - Perform expensive tasks (computing sync messages) in separate threads
 
