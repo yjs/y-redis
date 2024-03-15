@@ -37,9 +37,9 @@ specific room / document. An example server can be found in
 As this server implementation is clearly intended for startups & large companies
 that want a scalable backend to their collaborative product, I thought about
 commercializing this piece of software. Ultimately I decided against it, because
-permissively licensed software like this has more prositive impact on humanity
-overall. However it does make sense to cantact me to evaluate whether this is
-the right approach for you.
+permissively licensed software like this has more positive impact on humanity.
+However, it does make sense to cantact me for a consulting call to evaluate
+whether this is the right approach for you.
 
 Please support my work by [becoming a
 sponsor](https://github.com/sponsors/dmonad) or hiring me as a consultant for
