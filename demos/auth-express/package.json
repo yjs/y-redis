@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "dist": "rollup -c",
-    "start": "npm run dist && dotenv -f ../../.env run node server.js",
-    "debug": "dotenv -f ../../.env run node --inspect-brk server.js"
+    "start": "npm run dist && node --env-file ../../.env server.js",
+    "debug": "node --env-file ../../.env --inspect-brk server.js"
   },
   "author": "",
   "license": "MIT",

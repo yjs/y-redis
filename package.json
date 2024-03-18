@@ -10,14 +10,14 @@
   },
   "scripts": {
     "start": "concurrently -r 'npm run start:server' 'npm run start:worker'",
-    "start:server": "dotenv run node ./bin/server.js",
-    "start:worker": "dotenv run node ./bin/worker.js",
+    "start:server": "node --env-file .env ./bin/server.js",
+    "start:worker": "node --env-file .env ./bin/worker.js",
     "minio": "docker run -p 9000:9000 -p 9001:9001 quay.io/minio/minio server /data --console-address \":9001\"",
     "redis": "docker run -p 6379:6379 redis",
     "dist": "rollup -c && tsc",
     "lint": "standard && tsc",
-    "test": "dotenv run node tests/index.js",
-    "test-inspect": "dotenv run node --inspect-brk tests/index.js",
+    "test": "node --env-file .env tests/index.js",
+    "test-inspect": "node --env-file .env --inspect-brk tests/index.js",
     "preversion": "npm run lint && npm run dist",
     "demo": "rollup -c && concurrently -r 'rollup -wc' 'npm start' '0serve -o demo/index.html'"
   },
@@ -57,7 +57,7 @@
     ]
   },
   "dependencies": {
-    "lib0": "^0.2.88",
+    "lib0": "^0.2.93",
     "minio": "^7.1.3",
     "postgres": "^3.4.3",
     "redis": "^4.6.12",
