@@ -17,14 +17,17 @@ const port = 4444
 const app = uws.App({})
 
 app.put('/ydoc/:room', async (res, req) => {
-  console.log('receiving callback data ---------------------------------------')
+  let aborted = false
+  res.onAborted(() => {
+    aborted = true
+  })
   const room = req.getParameter(0)
   const header = req.getHeader('content-type')
   // this "encoder" will accumulate the received data until all data arrived
   const contentEncoder = encoding.createEncoder()
   res.onData((chunk, isLast) => {
     encoding.writeUint8Array(contentEncoder, new Uint8Array(chunk))
-    if (isLast) {
+    if (isLast && !aborted) {
       const fullContent = encoding.toUint8Array(contentEncoder)
       const parts = uws.getParts(fullContent, header)
       const ydocUpdateData = parts?.find(part => part.name === 'ydoc')?.data

@@ -19,13 +19,33 @@ Postgres, or implement your own storage provider.
 
 ### Components
 
+Redis is used as a "cache" and a distribution channel for document updates.
+Normal databases are not fast enough for handling real-time updates of
+fast-changing applications (e.g. collaborative drawing applications that
+generate hundreds of operations per second). Hence a redis-cache for temporary
+storage makes sense to distribute documents as fast as possible to all peers.
+
+A persistent storage (e.g. S3 or Postgres) is used to persist document updates
+permanently. You can configure in which intervals you want to persist data from
+redis to the persistent storage. You can even implement a custom persistent
+storage technology.
+
 The y-redis **server component** (`/bin/server.js`) is responsible for accepting
-websocket-connections and distributing the updates via redis.
+websocket-connections and distributing the updates via redis streams. Each
+"room" is represented as a redis stream. The server component assembles updates
+stored redis and in the persistent storage (e.g. S3 or Postgres) for the initial
+sync. After the initial sync, the server doesn't keep any Yjs state in-memory.
+You can start as many server components as you need. It makes sense to put the
+server component behind a loadbalancer, which can potentially auto-scale the
+server component based on CPU or network usage. 
 
 The separate y-redis **worker component** (`/bin/worker.js`) is responsible for
 extracting data from the redis cache to a persistent database like S3 or
 Postgres. Once the data is persisted, the worker component cleans up stale data
-in redis.
+in redis. You can start as many worker components as you need. It is recommended
+to run at least one worker, so that the data is eventually persisted. The worker
+components coordinate which room needs to be persisted using a separate
+worker-queue (see `y:worker` stream in redis).
 
 You are responsible for providing a REST backend that y-redis will call to check
 whether a specific client (authenticated via a JWT token) has access to a
