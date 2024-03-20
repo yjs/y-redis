@@ -39,6 +39,7 @@ app.put('/ydoc/:room', async (res, req) => {
       const ydoc = new Y.Doc()
       Y.applyUpdateV2(ydoc, ydocUpdate)
       console.log(`Ydoc in room "${room}" updated. New codemirror content: "${ydoc.getText('codemirror')}"`)
+      res.endWithoutBody()
     }
   })
 })

@@ -85,7 +85,7 @@
     "typescript": "^5.3.3",
     "ws": "^8.16.0",
     "y-codemirror.next": "^0.3.2",
-    "y-websocket": "^1.5.3",
+    "y-websocket": "^2.0.0",
     "yjs": "^13.6.12"
   }
 }

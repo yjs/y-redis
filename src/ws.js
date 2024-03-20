@@ -174,7 +174,6 @@ export const registerYWebsocketServer = async (app, pattern, store, checkAuth, {
     },
     close: (ws, code, message) => {
       const user = ws.getUserData()
-      console.log('closing?')
       log(() => ['client connection closed (uid=', user.id, ', code=', code, ', message="', Buffer.from(message).toString(), '")'])
       user.subs.forEach(topic => {
         if (app.numSubscribers(topic) === 0) {
