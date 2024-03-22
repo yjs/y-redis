@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BlockSuite Example</title>
+  </head>
+  <body>
+    <button id="create-doc">create doc</button>
+    <script>
+      window.process = { env: { NODE_ENV: 'development' } }
+    </script>
+    <script type="module" src="./dist/main.js"></script>
+  </body>
+</html>
