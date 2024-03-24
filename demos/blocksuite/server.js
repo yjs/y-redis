@@ -18,6 +18,10 @@ await db.write()
 const app = express()
 const port = 5173
 
+// serve static files
+app.use(express.static('./'))
+app.use(express.json())
+
 // Read the AUTH_PRIVATE_KEY environment variable and import the JWK
 export const authPrivateKey = await ecdsa.importKeyJwk(
   JSON.parse(env.ensureConf('auth-private-key'))
@@ -137,9 +141,6 @@ app.patch('/docs/:id/title', async (req, res) => {
     res.status(404).send('Document not found')
   }
 })
-
-// serve static files
-app.use(express.static('./'))
 
 app.listen(port, () => {
   console.log(`Express Demo BlockSuite server listening on port ${port}`)

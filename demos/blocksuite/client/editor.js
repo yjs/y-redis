@@ -3,18 +3,20 @@ import '@toeverything/theme/style.css'
 import { AffineSchemas } from '@blocksuite/blocks'
 import { AffineEditorContainer } from '@blocksuite/presets'
 // eslint-disable-next-line no-unused-vars
-import { Schema, DocCollection, Text, Doc } from '@blocksuite/store'
+import { Schema, DocCollection, Text, Doc, Slot } from '@blocksuite/store'
 
 const schema = new Schema().register(AffineSchemas)
 export const collection = new DocCollection({ schema })
 export const editor = new AffineEditorContainer()
+export const emptyDoc = collection.createDoc() // empty placeholder
 
-/** @param {{onDocUpdated: function}} editorCallbacks */
-export function initEditor (editorCallbacks) {
-  editor.doc = collection.createDoc() // empty placeholder doc
+export function initEditor () {
+  editor.doc = emptyDoc
   document.body.append(editor)
 
-  collection.slots.docUpdated.on(() => editorCallbacks.onDocUpdated())
+  return {
+    onDocUpdated: collection.slots.docUpdated
+  }
 }
 
 /** @param {string} id */
@@ -31,6 +33,4 @@ export function createDoc (id) {
       noteId
     )
   })
-
-  editor.doc = doc
 }

@@ -19,6 +19,17 @@ async function addDocMeta () {
   return docMeta
 }
 
+/** @param {string} id @param {string} title */
+async function updateDocMeta (id, title) {
+  await fetch(`${serverUrl}/docs/${id}/title`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ title })
+  })
+}
+
 /** @param {string} id */
 async function deleteDocMeta (id) {
   await fetch(`${serverUrl}/docs/${id}`, {
@@ -29,5 +40,6 @@ async function deleteDocMeta (id) {
 export const api = {
   getDocMetaList,
   addDocMeta,
+  updateDocMeta,
   deleteDocMeta
 }
