@@ -1,4 +1,6 @@
 import * as Y from 'yjs'
+import { fileURLToPath } from 'url'
+import { dirname, resolve } from 'path'
 import express from 'express'
 import formidable from 'formidable'
 import { JSONFilePreset } from 'lowdb/node'
@@ -140,6 +142,12 @@ app.patch('/docs/:id/title', async (req, res) => {
   } else {
     res.status(404).send('Document not found')
   }
+})
+
+app.get('*', (req, res) => {
+  const __filename = fileURLToPath(import.meta.url)
+  const __dirname = dirname(__filename)
+  res.sendFile(resolve(__dirname, 'index.html'))
 })
 
 app.listen(port, () => {

@@ -2,13 +2,15 @@
 import { Slot } from '@blocksuite/store'
 import { api } from './api.js'
 import { collection, createDoc, editor, emptyDoc } from './editor.js'
+import { getCurrentRoom, setRoom } from './route.js'
 
 /** @type HTMLSelectElement */ // @ts-ignore
 const docListElement = document.getElementById('doc-list')
 const addDocBtn = document.getElementById('add-doc')
 const deleteDocBtn = document.getElementById('delete-doc')
 
-export async function resetDocList () {
+/** @param {string} id */
+export async function resetDocList (id = '') {
   const docList = await api.getDocMetaList()
 
   if (docList.length > 0) {
@@ -19,6 +21,7 @@ export async function resetDocList () {
       option.textContent = doc.title || 'Untitled'
       docListElement.appendChild(option)
     })
+    if (id) docListElement.value = id
   } else {
     docListElement.innerHTML = '<option value="" disabled selected hidden>No Docs</option>'
   }
@@ -34,7 +37,7 @@ function updateDocList (id, title) {
 async function addDoc () {
   const { id } = await api.addDocMeta()
   createDoc(id)
-  await resetDocList()
+  await resetDocList(id)
   docListElement.selectedIndex = Array.from(docListElement.options).findIndex(o => o.value === id)
   switchDoc()
 }
@@ -56,18 +59,20 @@ async function updateDocTitle () {
   updateDocList(currentDocId, title)
 }
 
-function switchDoc () {
-  const currentDocId = docListElement.value
-  let doc = collection.getDoc(currentDocId)
+function switchDoc (id = docListElement.value) {
+  let doc = collection.getDoc(id)
   if (!doc) doc = emptyDoc
   editor.doc = doc
+  setRoom(id)
 }
 
 /** @param {{onDocUpdated: Slot<void>}} editorSlots */
 export function initUI (editorSlots) {
   addDocBtn && addDocBtn.addEventListener('click', addDoc)
   deleteDocBtn && deleteDocBtn.addEventListener('click', deleteDoc)
-  docListElement.addEventListener('change', switchDoc)
+
+  docListElement.addEventListener('change', () => switchDoc())
+  window.addEventListener('popstate', () => switchDoc(getCurrentRoom()))
 
   editorSlots.onDocUpdated.on(() => updateDocTitle())
 }
