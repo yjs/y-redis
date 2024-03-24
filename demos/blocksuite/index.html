@@ -1,15 +1,19 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html>
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BlockSuite Example</title>
+    <meta charset="utf-8" />
+    <title>Yjs y-redis / BlockSuite Demo</title>
   </head>
   <body>
-    <button id="create-doc">create doc</button>
-    <script>
-      window.process = { env: { NODE_ENV: 'development' } }
-    </script>
-    <script type="module" src="./dist/main.js"></script>
+    
+    <div>
+      <select id="doc-list">
+        <option value="" disabled selected hidden>No Docs</option>
+      </select>
+      <button id="add-doc">Add Doc</button>
+      <button id="delete-doc">Delete Doc</button>
+    </div>
+    <script>window.process = { env: { NODE_ENV: 'development' } }</script>
+    <script type="module" src="../dist/main.js" async></script>
   </body>
 </html>

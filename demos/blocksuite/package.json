@@ -19,7 +19,8 @@
     "@blocksuite/presets": "0.14.0-canary-202403201020-e0ac77d",
     "@blocksuite/store": "0.14.0-canary-202403201020-e0ac77d",
     "express": "^4.18.3",
-    "formidable": "^3.5.1"
+    "formidable": "^3.5.1",
+    "lowdb": "^7.0.1"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.7",
