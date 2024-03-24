@@ -130,7 +130,7 @@ app.patch('/docs/:id/title', async (req, res) => {
   const { id } = req.params
   const { title } = req.body
 
-  if (!title) return res.status(400).send('Missing title')
+  if (typeof title !== 'string') return res.status(400).send('Missing title')
 
   await db.read()
   const doc = db.data.docs.find(doc => doc.id === id)

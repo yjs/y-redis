@@ -1,8 +1,9 @@
 // eslint-disable-next-line no-unused-vars
 import { Slot } from '@blocksuite/store'
 import { api } from './api.js'
-import { collection, createDoc, editor, emptyDoc } from './editor.js'
+import { collection, createDoc, editor, emptyDoc, loadDoc } from './editor.js'
 import { getCurrentRoom, setRoom } from './route.js'
+import { sync } from './sync.js'
 
 /** @type HTMLSelectElement */ // @ts-ignore
 const docListElement = document.getElementById('doc-list')
@@ -61,9 +62,14 @@ async function updateDocTitle () {
 
 function switchDoc (id = docListElement.value) {
   let doc = collection.getDoc(id)
-  if (!doc) doc = emptyDoc
-  editor.doc = doc
-  setRoom(id)
+  if (!id) {
+    editor.doc = emptyDoc
+    setRoom('')
+  } else {
+    if (!doc) doc = loadDoc(id)
+    setRoom(id)
+    sync(doc)
+  }
 }
 
 /** @param {{onDocUpdated: Slot<void>}} editorSlots */

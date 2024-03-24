@@ -1,10 +1,12 @@
-import { initEditor } from './editor.js'
+import { initEditor, loadDoc } from './editor.js'
 import { getCurrentRoom } from './route.js'
+import { sync } from './sync.js'
 import { initUI, resetDocList } from './ui.js'
 
-window.addEventListener('load', () => {
-  const room = getCurrentRoom()
-  const editorSlots = initEditor()
-  initUI(editorSlots)
-  resetDocList(room)
-})
+const room = getCurrentRoom()
+const editorSlots = initEditor()
+const doc = loadDoc(room)
+
+initUI(editorSlots)
+resetDocList(room)
+if (room) sync(doc)

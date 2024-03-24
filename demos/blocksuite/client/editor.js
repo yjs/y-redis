@@ -20,6 +20,14 @@ export function initEditor () {
 }
 
 /** @param {string} id */
+export function loadDoc (id) {
+  const localDoc = collection.getDoc(id)
+  if (localDoc) return localDoc
+
+  return collection.createDoc({ id })
+}
+
+/** @param {string} id */
 export function createDoc (id) {
   const doc = collection.createDoc({ id })
 
