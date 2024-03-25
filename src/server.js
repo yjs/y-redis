@@ -53,8 +53,13 @@ export const createYWebsocketServer = async ({
       throw new Error('Missing userid in user token!')
     }
     const permUrl = new URL(`${room}/${userToken.yuserid}`, checkPermCallbackUrl)
-    const perm = await fetch(permUrl).then(req => req.json())
-    return { hasWriteAccess: perm.yaccess === 'rw', room, userid: perm.yuserid || '' }
+    try {
+      const perm = await fetch(permUrl).then(req => req.json())
+      return { hasWriteAccess: perm.yaccess === 'rw', room, userid: perm.yuserid || '' }
+    } catch (e) {
+      console.error('Failed to pull permissions from', { permUrl })
+      throw e
+    }
   }, { redisPrefix })
 
   await promise.create((resolve, reject) => {

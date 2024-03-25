@@ -9,7 +9,7 @@ import * as fs from 'fs/promises'
 import * as promise from 'lib0/promise'
 
 const app = express()
-const port = 4444
+const port = 5173
 
 // Read the AUTH_PRIVATE_KEY environment variable and import the JWK
 export const authPrivateKey = await ecdsa.importKeyJwk(JSON.parse(env.ensureConf('auth-private-key')))
