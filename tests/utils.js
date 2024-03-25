@@ -15,7 +15,7 @@ export const authPublicKey = await ecdsa.importKeyJwk(json.parse(env.ensureConf(
 
 export const redisPrefix = 'ytests'
 
-export const authDemoServerPort = 4444
+export const authDemoServerPort = 8888
 export const authDemoServerUrl = `http://localhost:${authDemoServerPort}`
 export const checkPermCallbackUrl = `${authDemoServerUrl}/auth/perm/`
 export const authTokenUrl = `${authDemoServerUrl}/auth/token`

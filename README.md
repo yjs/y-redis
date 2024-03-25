@@ -147,7 +147,7 @@ npm i
 npm start
 ```
 
-Open [`http://localhost:4444`](http://localhost:4444) in a browser.
+Open [`http://localhost:5173`](http://localhost:5173) in a browser.
 
 ## License
 

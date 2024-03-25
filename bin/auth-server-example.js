@@ -12,7 +12,7 @@ import * as Y from 'yjs'
 
 const appName = 'Auth-Server-Example'
 const authPrivateKey = await ecdsa.importKeyJwk(json.parse(env.ensureConf('auth-private-key')))
-const port = 4444
+const port = 5173
 
 const app = uws.App({})
 
