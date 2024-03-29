@@ -108,8 +108,9 @@ export class Api {
     this.consumername = random.uuidv4()
     /**
      * After this timeout, a new worker will pick up the task
+     * @todo rename this variable
      */
-    this.redisWorkerTimeout = 60 * 10 * 1000
+    this.redisWorkerTimeout = number.parseInt(env.getConf('redis-task-timeout') || '600000')
     /**
      * Minimum lifetime of y* update messages in redis streams.
      */
@@ -271,7 +272,7 @@ export class Api {
       })
     }
     if (tryClaimCount > 0) {
-      const claimedTasks = await this.redis.xReadGroup(this.redisWorkerGroupName, this.consumername, { key: this.redisWorkerStreamName, id: '>' }, { COUNT: tryClaimCount, BLOCK: blockTime })
+      const claimedTasks = await this.redis.xReadGroup(this.redisWorkerGroupName, this.consumername, { key: this.redisWorkerStreamName, id: '>' }, { COUNT: tryClaimCount - tasks.length, BLOCK: tasks.length === 0 ? blockTime : undefined })
       claimedTasks?.forEach(task => {
         task.messages.forEach(message => {
           const stream = message.message.compact
@@ -347,10 +348,12 @@ export class Worker {
     this.client = client
     logWorker('Created worker process ', { id: client.consumername, prefix: client.prefix, minMessageLifetime: client.redisMinMessageLifetime })
     ;(async () => {
+      const startRedisTime = await client.redis.time()
+      const timeDiff = startRedisTime.getTime() - time.getUnixTime()
       while (!client._destroyed) {
         try {
           const tasks = await client.consumeWorkerQueue()
-          if (tasks.length === 0 || client.redisMinMessageLifetime > time.getUnixTime() - number.parseInt(tasks[0].id.split('-')[0])) {
+          if (tasks.length === 0 || (client.redisMinMessageLifetime > time.getUnixTime() + timeDiff - number.parseInt(tasks[0].id.split('-')[0]))) {
             await promise.wait(client.redisMinMessageLifetime / 2)
           }
         } catch (e) {

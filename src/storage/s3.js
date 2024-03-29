@@ -55,6 +55,20 @@ export const decodeS3ObjectName = objectName => {
  */
 
 /**
+ * @param {import('stream').Stream} stream
+ * @return {Promise<Buffer>}
+ */
+const readStream = stream => promise.create((resolve, reject) => {
+  /**
+   * @type {Array<Buffer>}
+   */
+  const chunks = []
+  stream.on('data', chunk => chunks.push(Buffer.from(chunk)))
+  stream.on('error', reject)
+  stream.on('end', () => resolve(Buffer.concat(chunks)))
+})
+
+/**
  * @implements {AbstractStorage}
  */
 export class S3Storage {
@@ -95,7 +109,7 @@ export class S3Storage {
     if (references.length === 0) {
       return null
     }
-    let updates = await promise.all(references.map(ref => this.client.getObject(this.bucketName, ref).then(obj => obj.toArray().then(oarr => oarr[0]))))
+    let updates = await promise.all(references.map(ref => this.client.getObject(this.bucketName, ref).then(readStream)))
     updates = updates.filter(update => update != null)
     return { doc: Y.mergeUpdatesV2(updates), references }
   }
