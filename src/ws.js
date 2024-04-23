@@ -66,6 +66,7 @@ class User {
      * windows)
      */
     this.userid = userid
+    this.isClosed = false
   }
 }
 
@@ -140,6 +141,7 @@ export const registerYWebsocketServer = async (app, pattern, store, checkAuth, {
       ws.subscribe(stream)
       user.initialRedisSubId = subscriber.subscribe(stream, redisMessageSubscriber).redisId
       const indexDoc = await client.getDoc(user.room, 'index')
+      if (user.isClosed) return
       ws.cork(() => {
         ws.send(protocol.encodeSyncStep1(Y.encodeStateVector(indexDoc.ydoc)), true, false)
         ws.send(protocol.encodeSyncStep2(Y.encodeStateAsUpdate(indexDoc.ydoc)), true, true)
@@ -174,6 +176,7 @@ export const registerYWebsocketServer = async (app, pattern, store, checkAuth, {
     },
     close: (ws, code, message) => {
       const user = ws.getUserData()
+      user.isClosed = true
       log(() => ['client connection closed (uid=', user.id, ', code=', code, ', message="', Buffer.from(message).toString(), '")'])
       user.subs.forEach(topic => {
         if (app.numSubscribers(topic) === 0) {
