@@ -150,6 +150,22 @@ app.get('*', (req, res) => {
   res.sendFile(resolve(__dirname, 'index.html'))
 })
 
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`Express Demo BlockSuite server listening on port ${port}`)
 })
+
+// Gracefully shut down the server when running in Docker
+process.on("SIGTERM", shutDown)
+process.on("SIGINT", shutDown)
+
+function shutDown() {
+  console.log("Received SIGTERM/SIGINT - shutting down gracefully")
+  server.close(() => {
+    console.log("Closed out remaining connections - shutting down")
+    process.exit(0)
+  })
+  setTimeout(() => {
+    console.error("Couldn't close connections - forcefully shutting down")
+    process.exit(1)
+  }, 10000)
+}
