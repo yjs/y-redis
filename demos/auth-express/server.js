@@ -73,6 +73,22 @@ app.get('/auth/perm/:room/:userid', async (req, res) => {
 // serve static files
 app.use(express.static('./'))
 
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`Express Demo Auth server listening on port ${port}`)
 })
+
+// Gracefully shut down the server when running in Docker
+process.on("SIGTERM", shutDown)
+process.on("SIGINT", shutDown)
+
+function shutDown() {
+  console.log("Received kill signal, shutting down gracefully")
+  server.close(() => {
+    console.log("Closed out remaining connections")
+    process.exit(0)
+  })
+  setTimeout(() => {
+    console.error("Couldn'c sloe connections - forcefully shutting down")
+    process.exit(1)
+  }, 10000)
+}
