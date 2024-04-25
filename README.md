@@ -82,7 +82,49 @@ I'm looking for sponsors that want to sponsor the following work:
 If you are interested in sponsoring some of this work, please send a mail to
 <kevin.jahns@pm.me>
 
-# Quick Start
+# Quick Start (docker-compose)
+
+You can get everything running quickly using
+[docker-compose](https://docs.docker.com/compose/). The compose file runs the
+following components:
+
+- redis
+- minio as a s3 endpoint
+- a single y-redis server
+- a single y-redis worker
+
+This can be a good starting point for your application. If your cloud provider
+has a managed s3 service, you should probably use that instead of minio. If you
+want to use minio, you need to setup proper volumes and backups.
+
+The full setup gives insight into more specialized configuration options.
+
+```sh
+git clone https://github.com/yjs/y-redis.git
+cd y-redis
+npm i
+```
+
+### Setup the environment variables
+
+```sh
+cp .env.docker.template .env
+# generate unique authentication tokens
+npx 0ecdsa-generate-keypair --name auth >> .env
+```
+
+The sample configuration configures s3 using minio.
+Have a look at `.env.template` for more configuration options.
+
+### Run demo
+
+```sh
+cd ./demos/auth-express
+docker compose up
+# open http://localhost:5173 in a browser
+```
+
+# Full setup
 
 Components are configured via environment variables. It makes sense to start by
 cloning y-redis and getting one of the demos to work.
@@ -114,6 +156,9 @@ Alternatively, simply run a *minio* store as a docker container:
 docker run -p 9000:9000 -p 9001:9001 quay.io/minio/minio server /data --console-address \":9001\"
 # or `npm run minio`
 ```
+
+This is just a dev setup. Have a look at the minio documentation if you want to
+run it in production.
 
 #### Clone demo
 

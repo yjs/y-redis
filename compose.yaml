@@ -1,0 +1,25 @@
+services:
+  server:
+    build: .
+    ports:
+      - "3002:3002"
+    command: node ./bin/server.js --no-colors
+    env_file: .env
+    depends_on:
+      - minio
+      - redis
+  worker:
+    build: .
+    command: node ./bin/worker.js --no-colors
+    env_file: .env
+    depends_on:
+      - minio
+      - redis
+  redis:
+    image: redis:alpine
+  minio:
+    image: quay.io/minio/minio
+    ports:
+      - 9000:9000
+      - 9001:9001
+    command: server /data --console-address :9001
