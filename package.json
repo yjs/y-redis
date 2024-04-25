@@ -10,6 +10,7 @@
   },
   "scripts": {
     "dev": "concurrently -r 'npm run start:server' 'npm run start:worker' 'npm run minio'",
+    "dev:docker": "docker compose up --remove-orphans",
     "start:server": "node --env-file .env ./bin/server.js",
     "debug:server": "node --env-file .env --inspect-brk ./bin/worker.js ./bin/server.js",
     "start:worker": "node --env-file .env ./bin/worker.js",

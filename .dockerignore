@@ -2,6 +2,8 @@ dist
 node_modules
 tmp
 data-*
-*.env
+# demos
+*.env*
+Dockerfile
 .DS_Store
 .vscode

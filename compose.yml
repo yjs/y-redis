@@ -1,0 +1,105 @@
+# yredis demo stack - exposed services:
+#
+#   http://localhost:2222/    demos/auth-express app
+#   http://localhost:3333/    demos/blocksuite app
+#   http://localhost:3002/    yr-server (ydoc sync)
+#
+# these are just exposed for troubleshooting:
+#
+#   http://localhost:5432/    Postgres
+#   http://localhost:8001/    Redis analytics
+#   http://localhost:9001/    MinIO console
+
+x-vars:
+  shared: &shared
+    env_file: .env
+    # overrides to connect services inside of Docker overlay network
+    environment: &shared-env
+      REDIS: redis://redis:6379
+      POSTGRES: postgres://pg:5432
+      S3_ENDPOINT: s3
+      AUTH_PERM_CALLBACK: http://yr-authperm:5173/auth/perm
+      YDOC_UPDATE_CALLBACK: http://yr-docupdated:5173/ydoc
+
+services:
+  #
+  # demo apps
+  #
+  demo-codemirror: &demo-authexpress
+    <<: *shared
+    build: ./demos/auth-express
+    image: authexpress
+    command: ./server.js
+    ports: ["2222:5173"]
+
+  demo-blocksuite:
+    <<: *shared
+    build: ./demos/blocksuite
+    image: blocksuite
+    command: ./server.js
+    ports: ["3333:5173"]
+
+  #
+  # yredis services
+  #
+
+  # example server that authenticates and authorizes users users
+  yr-authperm:
+    <<: *shared
+    build: .
+    image: yredis
+    command: ./bin/auth-server-example.js
+    ports: [5173]
+
+  yr-authperm2: # another example auth server
+    <<: *demo-authexpress
+    ports: [5173]
+
+  # called whenever ydoc is updated - use for backups etc
+  yr-docupdated:
+    <<: *demo-authexpress
+    ports: [5173]
+
+  # ydoc sync server
+  yr-server:
+    <<: *shared
+    build: .
+    image: yredis
+    ports: ["3002:3002"]
+    depends_on: ["s3", "redis", "pg", "yr-authperm", "yr-docupdated"]
+    command: ./bin/server.js
+
+  # worker that compacts ydocs regularly - can spawn several
+  yr-worker:
+    <<: *shared
+    build: .
+    image: yredis
+    command: ./bin/worker.js
+    depends_on: ["s3", "redis", "pg"]
+
+  #
+  # backing services
+  #
+  redis:
+    <<: *shared
+    image: redis/redis-stack
+    volumes: ["./data-redis:/data"]
+    ports:
+      - "6379"
+      - "8001:8001"
+    environment:
+      <<: *shared-env
+      REDIS_ARGS: --save 60 1 --loglevel notice
+
+  pg:
+    <<: *shared
+    image: postgres:alpine
+    volumes: ["./data-pg:/var/lib/postgresql/data"]
+    ports: ["5432:5432"]
+
+  s3:
+    <<: *shared
+    image: minio/minio
+    volumes: ["./data-s3:/data"]
+    command: server /data --console-address ":9001"
+    ports: ["9000", "9001:9001"]
