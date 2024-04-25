@@ -76,7 +76,7 @@ app.get('/auth/perm/:room/:userid', async (res, req) => {
  * Resolves when the server started.
  */
 export const authServerStarted = promise.create((resolve, reject) => {
-  app.listen(port, (token) => {
+  const server = app.listen(port, (token) => {
     if (token) {
       logging.print(logging.GREEN, `[${appName}] Listening to port ${port}`)
       resolve()
@@ -86,4 +86,14 @@ export const authServerStarted = promise.create((resolve, reject) => {
       throw err
     }
   })
+
+  // Gracefully shut down the server when running in Docker
+  process.on("SIGTERM", shutDown)
+  process.on("SIGINT", shutDown)
+
+  function shutDown() {
+    console.log("Received SIGTERM/SIGINT - shutting down")
+    server.close()
+    process.exit(0)
+  }
 })
