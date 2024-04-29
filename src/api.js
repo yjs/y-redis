@@ -23,7 +23,7 @@ if (ydocUpdateCallback != null && ydocUpdateCallback.slice(-1) !== '/') {
   ydocUpdateCallback += '/'
 }
 
-console.log("Worker API Config", { redisUrl, ydocUpdateCallback})
+console.log("API Config", { redisUrl, ydocUpdateCallback})
 
 /**
  * @param {string} a
