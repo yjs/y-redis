@@ -3,13 +3,13 @@ import * as utils from './utils.js'
 import * as jwt from 'lib0/crypto/jwt'
 import * as json from 'lib0/json'
 
-import { authServerStarted } from '../bin/auth-server-example.js' // starts the example server
+import { whenStarted } from '../bin/auth-server-example.js' // starts the example server
 
 /**
  * @param {t.TestCase} _tc
  */
 export const testSampleAuthServer = async _tc => {
-  await authServerStarted
+  await whenStarted
   const room = 'sample-room'
   const token = await fetch(utils.authTokenUrl).then(req => req.text())
   // verify that the user has a valid token

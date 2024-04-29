@@ -1,25 +1,59 @@
+x-vars:
+  shared: &shared
+    env_file: .env # only needed for AUTH_*_KEY env vars
+    # overrides to connect services inside of Docker overlay network
+    environment: &shared-env
+      REDIS: redis://redis:6379
+      POSTGRES: postgres://pg:5432
+      S3_ENDPOINT: s3
+      AUTH_PERM_CALLBACK: http://auth:5173/auth/perm
+      YDOC_UPDATE_CALLBACK: http://backup:5173/ydoc
+  core: &core
+    <<: *shared
+    build: .
+    depends_on: [s3, redis, pg]
+
 services:
   server:
-    build: .
-    ports:
-      - "3002:3002"
+    <<: *core
+    ports: ["3002:3002"]
     command: node ./bin/server.js --no-colors
-    env_file: .env
-    depends_on:
-      - minio
-      - redis
+
   worker:
-    build: .
+    <<: *core
     command: node ./bin/worker.js --no-colors
-    env_file: .env
-    depends_on:
-      - minio
-      - redis
+
+  # microservices - also included in demo1 server
+  auth: # this is usually provided by the demo app
+    <<: *core
+    command: node ./bin/auth-server-example --no-colors
+
+  backup:
+    <<: *core
+    command: node ./bin/auth-server-example --no-colors
+
+  # demos - start these from inside demos/*/compose.yml
+  # demo1:
+  #   <<: *shared
+  #   build: demos/auth-express
+  #   ports: ["5173:5173"]
+  #   # profiles: [demo1]
+  #   depends_on: [server]
+
+  # demo2:
+  #   <<: *shared
+  #   build: demos/blocksuite
+  #   ports: ["5174:5173"]
+  #   # profiles: [demo2]
+  #   depends_on: [server]
+
+  # Backing services - WARNING: secure if you want to use in production
   redis:
     image: redis:alpine
-  minio:
-    image: quay.io/minio/minio
-    ports:
-      - 9000:9000
-      - 9001:9001
-    command: server /data --console-address :9001
+    command: redis-server --loglevel warning
+  s3:
+    image: minio/minio
+    command: server /data --quiet
+  pg:
+    image: postgres:alpine
+    environment: ["POSTGRES_HOST_AUTH_METHOD=trust"]

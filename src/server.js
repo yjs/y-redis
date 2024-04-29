@@ -55,20 +55,21 @@ export const createYWebsocketServer = async ({
     const permUrl = new URL(`${room}/${userToken.yuserid}`, checkPermCallbackUrl)
     try {
       const perm = await fetch(permUrl).then(req => req.json())
+      console.log('Checked permissions', { userToken, room, perm })
       return { hasWriteAccess: perm.yaccess === 'rw', room, userid: perm.yuserid || '' }
-    } catch (e) {
-      console.error('Failed to pull permissions from', { permUrl })
-      throw e
+    } catch (err) {
+      console.error('Checked permissions failed', { permUrl, err })
+      throw err
     }
   }, { redisPrefix })
 
   await promise.create((resolve, reject) => {
     app.listen(port, (token) => {
       if (token) {
-        logging.print(logging.GREEN, '[y-redis] Listening to port ', port)
+        console.log('Listening on port', port)
         resolve()
       } else {
-        const err = error.create('[y-redis] Failed to lisen to port ' + port)
+        const err = error.create(`Failed to listen on port ${port}`)
         reject(err)
         throw err
       }

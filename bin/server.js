@@ -10,6 +10,8 @@ const postgresUrl = env.getConf('postgres')
 const s3Endpoint = env.getConf('s3-endpoint')
 const checkPermCallbackUrl = env.ensureConf('AUTH_PERM_CALLBACK')
 
+console.log('Server Config ', { port, redisPrefix, postgresUrl, s3Endpoint, checkPermCallbackUrl })
+
 let store
 if (s3Endpoint) {
   console.log('using s3 store')
@@ -30,4 +32,13 @@ if (s3Endpoint) {
   store = createMemoryStorage()
 }
 
-server.createYWebsocketServer({ port, store, checkPermCallbackUrl, redisPrefix })
+const instance = await server.createYWebsocketServer({ port, store, checkPermCallbackUrl, redisPrefix })
+
+// Gracefully shut down the server when running in Docker
+process.on('SIGTERM', shutDown)
+process.on('SIGINT', shutDown)
+function shutDown() {
+  console.log('Received SIGTERM/SIGINT - shutting down')
+  instance.destroy()
+  process.exit(0)
+}
