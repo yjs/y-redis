@@ -16,7 +16,7 @@ x-vars:
 services:
   server:
     <<: *core
-    ports: ["3002:3002"]
+    ports: ['3002:3002']
     command: node ./bin/server.js --no-colors
 
   worker:
@@ -50,10 +50,15 @@ services:
   # Backing services - WARNING: secure if you want to use in production
   redis:
     image: redis:alpine
-    command: redis-server --loglevel warning
+    volumes: ['./data-redis:/data']
+    command: redis-server --dir /data
   s3:
     image: minio/minio
+    volumes: ['./data-minio:/data']
     command: server /data --quiet
   pg:
     image: postgres:alpine
-    environment: ["POSTGRES_HOST_AUTH_METHOD=trust"]
+    volumes: ['./data-postgres:/data']
+    environment:
+      PGDATA: /data
+      POSTGRES_HOST_AUTH_METHOD: trust
