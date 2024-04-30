@@ -12,13 +12,25 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@codemirror/lang-javascript": "^6.2.2",
+    "@codemirror/state": "^6.4.1",
+    "@codemirror/view": "^6.24.1",
+    "codemirror": "^6.0.1",
     "express": "^4.18.3",
     "formidable": "^3.5.1",
     "lib0": "^0.2.93",
-    "yjs": "^13.6.14"
+    "yjs": "^13.6.14",
+    "y-codemirror.next": "^0.3.2",
+    "y-websocket": "^2.0.0"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@types/node": "^20.11.5",
     "@types/express": "^4.17.21",
-    "@types/formidable": "^3.4.5"
+    "@types/formidable": "^3.4.5",
+    "rollup": "^4.12.0",
+    "standard": "^17.1.0",
+    "typescript": "^5.3.3"
   }
 }

@@ -13,8 +13,8 @@ import * as env from 'lib0/environment'
 import * as logging from 'lib0/logging'
 import * as time from 'lib0/time'
 
-const logWorker = logging.createModuleLogger('@y/redis/api/worker')
-const logApi = logging.createModuleLogger('@y/redis/api')
+const logWorker = console.log // logging.createModuleLogger('@y/redis/api/worker')
+const logApi = console.log // logging.createModuleLogger('@y/redis/api')
 
 export const redisUrl = env.ensureConf('redis')
 
@@ -22,6 +22,8 @@ let ydocUpdateCallback = env.getConf('ydoc-update-callback')
 if (ydocUpdateCallback != null && ydocUpdateCallback.slice(-1) !== '/') {
   ydocUpdateCallback += '/'
 }
+
+console.log("API Config", { redisUrl, ydocUpdateCallback})
 
 /**
  * @param {string} a

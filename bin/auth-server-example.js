@@ -14,9 +14,11 @@ const appName = 'Auth-Server-Example'
 const authPrivateKey = await ecdsa.importKeyJwk(json.parse(env.ensureConf('auth-private-key')))
 const port = 5173
 
+console.log('Auth Server Config', { port })
+
 const app = uws.App({})
 
-app.put('/ydoc/:room', async (res, req) => {
+app.put('/ydoc/:room', async function updated(res, req) {
   let aborted = false
   res.onAborted(() => {
     aborted = true
@@ -36,9 +38,10 @@ app.put('/ydoc/:room', async (res, req) => {
         return
       }
       const ydocUpdate = new Uint8Array(ydocUpdateData)
+      Y.logUpdateV2(ydocUpdate)
       const ydoc = new Y.Doc()
       Y.applyUpdateV2(ydoc, ydocUpdate)
-      console.log(`Ydoc in room "${room}" updated. New codemirror content: "${ydoc.getText('codemirror')}"`)
+      console.log('/ydoc', { room, content: dumpDoc(ydoc) })
       res.endWithoutBody()
     }
   })
@@ -46,7 +49,8 @@ app.put('/ydoc/:room', async (res, req) => {
 
 // This example server always grants read-write permission to all requests.
 // Modify it to your own needs or implement the same API in your own backend!
-app.get('/auth/token', async (res, _req) => {
+app.get('/auth/token', async function authn(res, _req) {
+  const yuserid = 'user1'
   let aborted = false
   res.onAborted(() => {
     aborted = true
@@ -54,46 +58,68 @@ app.get('/auth/token', async (res, _req) => {
   const token = await jwt.encodeJwt(authPrivateKey, {
     iss: appName,
     exp: time.getUnixTime() + 1000 * 60 * 60, // access expires in an hour
-    yuserid: 'user1'
+    yuserid
   })
   if (aborted) return
-  res.cork(() => {
-    res.end(token)
-  })
+  res.cork(() => res.end(token))
+  console.log('/auth/token', { yuserid }, '=>', token)
 })
 
-app.get('/auth/perm/:room/:userid', async (res, req) => {
+app.get('/auth/perm/:room/:userid', async function authz(res, req) {
   const yroom = req.getParameter(0)
   const yuserid = req.getParameter(1)
-  res.end(json.stringify({
-    yroom,
-    yaccess: 'rw',
-    yuserid
-  }))
+  const response = json.stringify({ yroom, yaccess: 'rw', yuserid })
+  console.log('/auth/perm', { yroom, yuserid }, '=>', response)
+  res.end(response)
 })
 
 /**
  * Resolves when the server started.
  */
-export const authServerStarted = promise.create((resolve, reject) => {
+export const whenStarted = promise.create((resolve, reject) => {
   const server = app.listen(port, (token) => {
     if (token) {
-      logging.print(logging.GREEN, `[${appName}] Listening to port ${port}`)
+      console.log(`Listening on port ${port}`)
       resolve()
     } else {
-      const err = error.create(`[${appName}] Failed to lisen to port ${port}`)
+      const err = error.create(`[${appName}] Failed to listen on port ${port}`)
       reject(err)
       throw err
     }
   })
 
   // Gracefully shut down the server when running in Docker
-  process.on("SIGTERM", shutDown)
-  process.on("SIGINT", shutDown)
+  process.on('SIGTERM', shutDown)
+  process.on('SIGINT', shutDown)
 
   function shutDown() {
-    console.log("Received SIGTERM/SIGINT - shutting down")
+    console.log('Received SIGTERM/SIGINT - shutting down')
     server.close()
     process.exit(0)
   }
 })
+
+/**
+ * Hacky function to dump latest version of a general Y.Doc to a plain object.
+ * Ideally you would assume a specific schema and use the approprate typed getter.
+ *
+ * @param {Y.Doc} ydoc
+ */
+function dumpDoc(ydoc) {
+  /**
+   * @type {Object<string, any>}
+   */
+  const doc = {}
+  ydoc.share.forEach((type, key) => {
+    // Hack to "get" types in order for yDoc.toJSON() to show the data.
+    let value =
+      type._start !== null //
+        ? ydoc.getText(key).toJSON()
+        : type._map.size !== 0
+        ? ydoc.getMap(key).toJSON()
+        : 'unknown'
+
+    doc[key] = value
+  })
+  return doc
+}

@@ -7,6 +7,8 @@ const redisPrefix = env.getConf('redis-prefix') || 'y'
 const postgresUrl = env.getConf('postgres')
 const s3Endpoint = env.getConf('s3-endpoint')
 
+console.log('Worker Config', { redisPrefix, postgresUrl, s3Endpoint })
+
 let store
 if (s3Endpoint) {
   console.log('using s3 store')
@@ -27,4 +29,13 @@ if (s3Endpoint) {
   store = createMemoryStorage()
 }
 
-api.createWorker(store, redisPrefix)
+const wk = await api.createWorker(store, redisPrefix)
+
+// Gracefully shut down the server when running in Docker
+process.on('SIGTERM', shutDown)
+process.on('SIGINT', shutDown)
+function shutDown() {
+  console.log('Received SIGTERM/SIGINT - shutting down')
+  wk.client.destroy()
+  process.exit(0)
+}

@@ -25,12 +25,17 @@ export const usercolors = [
 
 export const userColor = usercolors[random.uint32() % usercolors.length]
 
+const syncUrl = `ws://localhost:3002`
+const authUrl = `http://${location.host}/auth/token`
 const room = 'y-redis-demo-app'
-const authTokenRequest = await fetch(`http://${location.host}/auth/token`)
+
+console.log("Demo Config", { syncUrl, authUrl, room })
+
+const authTokenRequest = await fetch(authUrl)
 const authToken = await authTokenRequest.text()
 
 const ydoc = new Y.Doc()
-const provider = new WebsocketProvider('ws://localhost:3002', room, ydoc, { params: { yauth: authToken } })
+const provider = new WebsocketProvider(syncUrl, room, ydoc, { params: { yauth: authToken } })
 const ytext = ydoc.getText('codemirror')
 
 provider.awareness.setLocalStateField('user', {

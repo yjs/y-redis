@@ -160,12 +160,6 @@ process.on("SIGINT", shutDown)
 
 function shutDown() {
   console.log("Received SIGTERM/SIGINT - shutting down gracefully")
-  server.close(() => {
-    console.log("Closed out remaining connections - shutting down")
-    process.exit(0)
-  })
-  setTimeout(() => {
-    console.error("Couldn't close connections - forcefully shutting down")
-    process.exit(1)
-  }, 10000)
+  server.closeAllConnections()
+  process.exit(0)
 }

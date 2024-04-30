@@ -18,6 +18,8 @@ export const authPublicKey = await ecdsa.importKeyJwk(JSON.parse(env.ensureConf(
 
 const appName = 'my-express-app'
 
+console.log(appName, 'Config', { port })
+
 // This endpoint is called in regular intervals when the document changes.
 // The request contains a multi-part formdata field that can be read, for example, with formidable:
 app.put('/ydoc/:room', async (req, res, next) => {
@@ -42,19 +44,21 @@ app.put('/ydoc/:room', async (req, res, next) => {
   })
   const ydoc = new Y.Doc()
   Y.applyUpdateV2(ydoc, ydocUpdate)
-  console.log(`codemirror content in room "${room}" updated: "${ydoc.getText('codemirror').toString().replaceAll('\n', '\\n')}"`)
+  console.log(`/ydoc`, { room, content: ydoc.getText('codemirror').toString().replaceAll('\n', '\\n') })
   res.sendStatus(200)
 })
 
 // This example server always grants read-write permission to all requests.
 // Modify it to your own needs or implement the same API in your own backend!
 app.get('/auth/token', async (_req, res) => {
+  const yuserid = 'user1'
   const token = await jwt.encodeJwt(authPrivateKey, {
     iss: appName,
     exp: time.getUnixTime() + 1000 * 60 * 60, // access expires in an hour
-    yuserid: 'user1' // associate the client with a unique id that can will be used to check permissions
+    yuserid // associate the client with a unique id that can will be used to check permissions
   })
   res.send(token)
+  console.log('/auth/token', { yuserid }, '=>', token)
 })
 
 // This api is called to check whether a specific user (identified by the unique "yuserid") has
@@ -63,32 +67,25 @@ app.get('/auth/perm/:room/:userid', async (req, res) => {
   const yroom = req.params.room
   const yuserid = req.params.userid
   // This sample-server always grants full acess
-  res.send(JSON.stringify({
-    yroom,
-    yaccess: 'rw', // alternatively, specify "read-only" or "no-access"
-    yuserid
-  }))
+  // alternatively, specify "read-only" or "no-access"
+  const response = JSON.stringify({ yroom, yaccess: 'rw', yuserid })
+  console.log('/auth/perm', { yroom, yuserid }, '=>', response)
+  res.send(response)
 })
 
 // serve static files
 app.use(express.static('./'))
 
 const server = app.listen(port, () => {
-  console.log(`Express Demo Auth server listening on port ${port}`)
+  console.log(`Listening on port ${port}`)
 })
 
 // Gracefully shut down the server when running in Docker
-process.on("SIGTERM", shutDown)
-process.on("SIGINT", shutDown)
+process.on('SIGTERM', shutDown)
+process.on('SIGINT', shutDown)
 
 function shutDown() {
-  console.log("Received SIGTERM/SIGINT - shutting down gracefully")
-  server.close(() => {
-    console.log("Closed out remaining connections - shutting down")
-    process.exit(0)
-  })
-  setTimeout(() => {
-    console.error("Couldn't close connections - forcefully shutting down")
-    process.exit(1)
-  }, 10000)
+  console.log('Received SIGTERM/SIGINT - shutting down')
+  server.closeAllConnections()
+  process.exit(0)
 }

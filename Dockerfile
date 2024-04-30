@@ -16,7 +16,7 @@ FROM node:lts-alpine3.19
 RUN apk add gcompat
 
 # Set the working directory in the container
-WORKDIR /usr/src/app
+WORKDIR /app
 
 # Copy package.json and package-lock.json (if available) to the working directory
 COPY package*.json ./
