@@ -27,6 +27,9 @@ RUN npm install
 # Bundle your app source inside the Docker image
 COPY . .
 
+# build files
+RUN npm run dist
+
 # Make port 3002 available to the world outside this container,
 # assuming your app runs on port 3002
 EXPOSE 3002

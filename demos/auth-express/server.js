@@ -51,7 +51,7 @@ app.put('/ydoc/:room', async (req, res, next) => {
 app.get('/auth/token', async (_req, res) => {
   const token = await jwt.encodeJwt(authPrivateKey, {
     iss: appName,
-    exp: time.getUnixTime() + 24 * 1000 * 60 * 60, // access expires in 24 hours
+    exp: time.getUnixTime() + 60 * 60 * 1000, // token expires in one hour
     yuserid: 'user1' // associate the client with a unique id that can will be used to check permissions
   })
   res.send(token)

@@ -13,7 +13,7 @@ import * as utils from './utils.js'
 
 const authToken = await jwt.encodeJwt(utils.authPrivateKey, {
   iss: 'my-auth-server',
-  exp: time.getUnixTime() + 1000 * 60 * 60 * 24, // access expires in a day
+  exp: time.getUnixTime() + 60 * 60 * 1000, // token expires in one hour
   yuserid: 'user1' // fill this with a unique id of the authorized user
 })
 

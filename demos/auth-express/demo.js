@@ -26,11 +26,26 @@ export const usercolors = [
 export const userColor = usercolors[random.uint32() % usercolors.length]
 
 const room = 'y-redis-demo-app'
-const authTokenRequest = await fetch(`http://${location.host}/auth/token`)
-const authToken = await authTokenRequest.text()
+
+// request an auth token before trying to connect
+const authToken = await fetch(`http://${location.host}/auth/token`).then(request => request.text())
 
 const ydoc = new Y.Doc()
 const provider = new WebsocketProvider('ws://localhost:3002', room, ydoc, { params: { yauth: authToken } })
+
+// The auth token expires eventually (by default in one hour)
+// Periodically pull a new auth token (e.g. every 30 minutes) and update the auth parameter
+const _updateAuthToken = async () => {
+  try {
+    provider.params.yauth = await fetch(`http://${location.host}/auth/token`).then(request => request.text())
+  } catch (e) {
+    setTimeout(_updateAuthToken, 1000) // in case of an error, retry in a second
+    return
+  }
+  setTimeout(_updateAuthToken, 30 * 60 * 60 * 1000) // send a new request in 30 minutes
+}
+_updateAuthToken()
+
 const ytext = ydoc.getText('codemirror')
 
 provider.awareness.setLocalStateField('user', {
