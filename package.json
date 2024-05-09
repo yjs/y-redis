@@ -21,7 +21,8 @@
     "test": "node --env-file .env tests/index.js",
     "test-inspect": "node --env-file .env --inspect-brk tests/index.js",
     "preversion": "npm run lint && npm run dist",
-    "demo": "rollup -c && concurrently -r 'rollup -wc' 'npm start' '0serve -o demo/index.html'"
+    "demo": "rollup -c && concurrently -r 'rollup -wc' 'npm start' '0serve -o demo/index.html'",
+    "clean": "rm -rf **/dist "
   },
   "bin": {
     "y-redis-server": "./bin/server.js",
