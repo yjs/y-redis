@@ -53,7 +53,7 @@ app.get('/auth/token', async (res, _req) => {
   })
   const token = await jwt.encodeJwt(authPrivateKey, {
     iss: appName,
-    exp: time.getUnixTime() + 1000 * 60 * 60, // access expires in an hour
+    exp: time.getUnixTime() + 24 * 1000 * 60 * 60, // access expires in 24 hours
     yuserid: 'user1'
   })
   if (aborted) return
