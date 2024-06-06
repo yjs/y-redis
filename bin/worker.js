@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "../instrument-worker.js";
 
 import * as env from 'lib0/environment'
 import * as yredis from '@y/redis'

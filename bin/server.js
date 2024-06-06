@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "../instrument-server.js";
 
 import * as number from 'lib0/number'
 import * as env from 'lib0/environment'

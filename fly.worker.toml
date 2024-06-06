@@ -1,0 +1,15 @@
+# fly.toml app configuration file generated for yredis-worker-prod on 2024-05-08T16:11:18+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'yredis-worker-prod'
+primary_region = 'mad'
+
+[build]
+  dockerfile = 'Dockerfile.worker'
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
