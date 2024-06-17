@@ -47,7 +47,7 @@
     "Yjs"
   ],
   "author": "Kevin Jahns <kevin.jahns@protonmail.com>",
-  "license": "MIT",
+  "license": "PROPRIETARY",
   "bugs": {
     "url": "https://github.com/yjs/y-redis/issues"
   },

@@ -17,6 +17,12 @@ access to a document.
 - **Database agnostic:** You can persist documents in S3-compatible backends, in
 Postgres, or implement your own storage provider.
 
+### Licensing
+
+Currently, this project is proprietary. This software is mainly targeted for large
+companies that want a scalable y-redis backend. Please contact me to buy a
+license: <kevin.jahns at pm.me>
+
 ### Components
 
 Redis is used as a "cache" and a distribution channel for document updates.
@@ -196,4 +202,4 @@ Open [`http://localhost:5173`](http://localhost:5173) in a browser.
 
 ## License
 
-[The MIT License](./LICENSE) © Kevin Jahns
+Proprietary - please contact me to buy a license <kevin.jahns at pm.me>
