@@ -7,10 +7,9 @@ import * as ecdsa from 'lib0/crypto/ecdsa'
 import * as json from 'lib0/json'
 import { registerYWebsocketServer } from '../src/ws.js'
 import * as promise from 'lib0/promise'
-import * as time from 'lib0/time'
 
 const wsServerPublicKey = await ecdsa.importKeyJwk(json.parse(env.ensureConf('auth-public-key')))
-const wsServerPrivateKey = await ecdsa.importKeyJwk(json.parse(env.ensureConf('auth-private-key')))
+// const wsServerPrivateKey = await ecdsa.importKeyJwk(json.parse(env.ensureConf('auth-private-key')))
 
 class YWebsocketServer {
   /**

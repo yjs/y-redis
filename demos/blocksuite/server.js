@@ -155,13 +155,13 @@ const server = app.listen(port, () => {
 })
 
 // Gracefully shut down the server when running in Docker
-process.on("SIGTERM", shutDown)
-process.on("SIGINT", shutDown)
+process.on('SIGTERM', shutDown)
+process.on('SIGINT', shutDown)
 
-function shutDown() {
-  console.log("Received SIGTERM/SIGINT - shutting down gracefully")
+function shutDown () {
+  console.log('Received SIGTERM/SIGINT - shutting down gracefully')
   server.close(() => {
-    console.log("Closed out remaining connections - shutting down")
+    console.log('Closed out remaining connections - shutting down')
     process.exit(0)
   })
   setTimeout(() => {

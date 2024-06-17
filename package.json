@@ -1,7 +1,7 @@
 {
   "name": "@y/redis",
-  "version": "1.5.3",
-  "description": "Scalable websockets provider for Yjs using redis",
+  "version": "0.0.1",
+  "description": "Scalable websocket provider for Yjs using redis",
   "sideEffects": false,
   "type": "module",
   "funding": {
@@ -16,12 +16,11 @@
     "debug:worker": "node --env-file .env --inspect-brk ./bin/worker.js",
     "minio": "docker run -p 9000:9000 -p 9001:9001 quay.io/minio/minio server /data --console-address \":9001\"",
     "redis": "docker run -p 6379:6379 redis",
-    "dist": "rollup -c && tsc",
+    "dist": "tsc",
     "lint": "standard && tsc",
     "test": "node --env-file .env tests/index.js",
     "test-inspect": "node --env-file .env --inspect-brk tests/index.js",
     "preversion": "npm run lint && npm run dist",
-    "demo": "rollup -c && concurrently -r 'rollup -wc' 'npm start' '0serve -o demo/index.html'",
     "clean": "rm -rf **/dist "
   },
   "bin": {
@@ -74,9 +73,6 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^25.0.7",
-    "@rollup/plugin-node-resolve": "^15.2.3",
-    "rollup": "^4.12.0",
     "@types/node": "^20.11.5",
     "@types/ws": "^8.5.10",
     "concurrently": "^8.2.2",

@@ -17,5 +17,9 @@
     "baseUrl": "./",
     "paths": {
     }
-  }
+  },
+  "exclude": [
+    "**/dist",
+    "./demos/blocksuite/"
+  ]
 }

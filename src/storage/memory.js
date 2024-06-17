@@ -8,7 +8,15 @@ import * as promise from 'lib0/promise'
  * @typedef {import('../storage.js').AbstractStorage} AbstractStorage
  */
 
-export const createMemoryStorage = () => new MemoryStorage()
+/**
+ * @typedef {Object} MemoryStorageOpts
+ * @property {(room:string,docname:string)=>Promise<Y.Doc|null>} [MemoryStorageParams.populateDoc] Populate the doc if it doesn't exist yet in the database
+ */
+
+/**
+ * @param {MemoryStorageOpts} opts
+ */
+export const createMemoryStorage = (opts = {}) => new MemoryStorage(opts)
 
 /**
  * A helper Storage implementation for testing when only using one server. For production use
@@ -17,12 +25,16 @@ export const createMemoryStorage = () => new MemoryStorage()
  * @implements {AbstractStorage}
  */
 export class MemoryStorage {
-  constructor () {
+  /**
+   * @param {MemoryStorageOpts} opts
+   */
+  constructor (opts) {
     /**
      * path := room.docid.referenceid
      * @type {Map<string, Map<string, Map<string, Uint8Array>>>}
      */
     this.docs = new Map()
+    this.populateDoc = opts.populateDoc ?? null
   }
 
   /**
@@ -45,8 +57,15 @@ export class MemoryStorage {
    * @param {string} docname
    * @return {Promise<{ doc: Uint8Array, references: Array<string> } | null>}
    */
-  retrieveDoc (room, docname) {
+  async retrieveDoc (room, docname) {
     const refs = this.docs.get(room)?.get(docname)
+    if (this.populateDoc != null && (refs == null || refs.size === 0)) {
+      const ydoc = await this.populateDoc(room, docname)
+      if (ydoc != null) {
+        await this.persistDoc(room, docname, ydoc)
+        return this.retrieveDoc(room, docname)
+      }
+    }
     return promise.resolveWith((refs == null || refs.size === 0) ? null : { doc: Y.mergeUpdatesV2(array.from(refs.values())), references: array.from(refs.keys()) })
   }
 

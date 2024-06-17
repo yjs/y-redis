@@ -84,3 +84,39 @@ export const testStorages = async _tc => {
     })
   }
 }
+
+/**
+ * @param {t.TestCase} _tc
+ */
+export const testStoragesInitialPopulate = async _tc => {
+  const memory = createMemoryStorage({
+    populateDoc: async (room, docname) => {
+      const ydoc = new Y.Doc()
+      ydoc.getMap().set('room', room)
+      ydoc.getMap().set('docname', docname)
+      return ydoc
+    }
+  })
+
+  /**
+   * @type {Object<string, import('../src/storage.js').AbstractStorage>}
+   */
+  const storages = { memory }
+  for (const storageName in storages) {
+    const storage = storages[storageName]
+    await t.groupAsync(`storage: ${storageName}`, async () => {
+      {
+        t.info('get ydoc')
+        const retrieved = await storage.retrieveDoc('room', 'index')
+        if (retrieved == null) t.fail('expected inital content')
+        const ydoc1 = new Y.Doc()
+        Y.applyUpdateV2(ydoc1, retrieved.doc)
+        t.compare(ydoc1.getMap().toJSON(), { room: 'room', docname: 'index' })
+        const sv1 = await storage.retrieveStateVector('room', 'index')
+        t.assert(sv1)
+        t.compare(new Uint8Array(sv1), Y.encodeStateVector(ydoc1), 'state vectors match')
+      }
+      await storage.destroy()
+    })
+  }
+}

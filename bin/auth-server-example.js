@@ -88,11 +88,11 @@ export const authServerStarted = promise.create((resolve, reject) => {
   })
 
   // Gracefully shut down the server when running in Docker
-  process.on("SIGTERM", shutDown)
-  process.on("SIGINT", shutDown)
+  process.on('SIGTERM', shutDown)
+  process.on('SIGINT', shutDown)
 
-  function shutDown() {
-    console.log("Received SIGTERM/SIGINT - shutting down")
+  function shutDown () {
+    console.log('Received SIGTERM/SIGINT - shutting down')
     server.close()
     process.exit(0)
   }

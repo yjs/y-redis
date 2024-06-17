@@ -10,9 +10,11 @@ export default [{
     sourcemap: true
   },
   plugins: [
+    // @ts-ignore
     nodeResolve({
       mainFields: ['module', 'browser', 'main']
     }),
+    // @ts-ignore
     commonjs()
   ]
 }]

@@ -14,7 +14,7 @@ import * as logging from 'lib0/logging'
 import * as time from 'lib0/time'
 
 const logWorker = logging.createModuleLogger('@y/redis/api/worker')
-const logApi = logging.createModuleLogger('@y/redis/api')
+// const logApi = logging.createModuleLogger('@y/redis/api')
 
 export const redisUrl = env.ensureConf('redis')
 
