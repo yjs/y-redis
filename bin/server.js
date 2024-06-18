@@ -2,7 +2,7 @@
 
 import * as number from 'lib0/number'
 import * as env from 'lib0/environment'
-import * as server from '../src/index.js'
+import * as yredis from '@y/redis'
 
 const port = number.parseInt(env.getConf('port') || '3002')
 const redisPrefix = env.getConf('redis-prefix') || 'y'
@@ -30,4 +30,4 @@ if (s3Endpoint) {
   store = createMemoryStorage()
 }
 
-server.createYWebsocketServer({ port, store, checkPermCallbackUrl, redisPrefix })
+yredis.createYWebsocketServer({ port, store, checkPermCallbackUrl, redisPrefix })

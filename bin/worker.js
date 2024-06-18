@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import * as env from 'lib0/environment'
-import * as api from '../src/api.js'
+import * as yredis from '@y/redis'
 
 const redisPrefix = env.getConf('redis-prefix') || 'y'
 const postgresUrl = env.getConf('postgres')
@@ -27,4 +27,4 @@ if (s3Endpoint) {
   store = createMemoryStorage()
 }
 
-api.createWorker(store, redisPrefix)
+yredis.createWorker(store, redisPrefix)
