@@ -44,7 +44,7 @@ const createTestCase = async tc => {
 }
 
 const createWorker = async () => {
-  const worker = await api.createWorker(store, redisPrefix)
+  const worker = await api.createWorker(store, redisPrefix, {})
   worker.client.redisMinMessageLifetime = 200
   worker.client.redisWorkerTimeout = 50
   prevClients.push(worker.client)

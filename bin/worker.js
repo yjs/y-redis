@@ -2,6 +2,7 @@
 
 import * as env from 'lib0/environment'
 import * as yredis from '@y/redis'
+import * as Y from 'yjs'
 
 const redisPrefix = env.getConf('redis-prefix') || 'y'
 const postgresUrl = env.getConf('postgres')
@@ -27,4 +28,28 @@ if (s3Endpoint) {
   store = createMemoryStorage()
 }
 
-yredis.createWorker(store, redisPrefix)
+let ydocUpdateCallback = env.getConf('ydoc-update-callback')
+if (ydocUpdateCallback != null && ydocUpdateCallback.slice(-1) !== '/') {
+  ydocUpdateCallback += '/'
+}
+
+/**
+ * @type {(room: string, ydoc: Y.Doc) => Promise<void>}
+ */
+const updateCallback = async (room, ydoc) => {
+  if (ydocUpdateCallback != null) {
+    // call YDOC_UPDATE_CALLBACK here
+    const formData = new FormData()
+    // @todo only convert ydoc to updatev2 once
+    formData.append('ydoc', new Blob([Y.encodeStateAsUpdateV2(ydoc)]))
+    // @todo should add a timeout to fetch (see fetch signal abortcontroller)
+    const res = await fetch(new URL(room, ydocUpdateCallback), { body: formData, method: 'PUT' })
+    if (!res.ok) {
+      console.error(`Issue sending data to YDOC_UPDATE_CALLBACK. status="${res.status}" statusText="${res.statusText}"`)
+    }
+  }
+}
+
+yredis.createWorker(store, redisPrefix, {
+  updateCallback
+})

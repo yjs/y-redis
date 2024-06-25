@@ -29,7 +29,7 @@ const createWsClient = (tc, room) => {
 }
 
 const createWorker = async () => {
-  const worker = await api.createWorker(utils.store, utils.redisPrefix)
+  const worker = await api.createWorker(utils.store, utils.redisPrefix, {})
   worker.client.redisMinMessageLifetime = 500
   worker.client.redisWorkerTimeout = 100
   utils.prevClients.push(worker.client)

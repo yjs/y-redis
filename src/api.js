@@ -18,11 +18,6 @@ const logWorker = logging.createModuleLogger('@y/redis/api/worker')
 
 export const redisUrl = env.ensureConf('redis')
 
-let ydocUpdateCallback = env.getConf('ydoc-update-callback')
-if (ydocUpdateCallback != null && ydocUpdateCallback.slice(-1) !== '/') {
-  ydocUpdateCallback += '/'
-}
-
 /**
  * @param {string} a
  * @param {string} b
@@ -254,12 +249,9 @@ export class Api {
   }
 
   /**
-   * @param {Object} opts
-   * @param {number} [opts.blockTime]
-   * @param {number} [opts.tryReclaimCount]
-   * @param {number} [opts.tryClaimCount]
+   * @param {WorkerOpts} opts
    */
-  async consumeWorkerQueue ({ blockTime = 1000, tryReclaimCount = 5, tryClaimCount = 5 } = {}) {
+  async consumeWorkerQueue ({ blockTime = 1000, tryReclaimCount = 5, tryClaimCount = 5, updateCallback = async () => {} }) {
     /**
      * @type {Array<{stream: string, id: string}>}
      */
@@ -291,6 +283,8 @@ export class Api {
         logWorker('Stream still empty, removing recurring task from queue ', { stream: task.stream })
       } else {
         const { room, docid } = decodeRedisRoomStreamName(task.stream, this.prefix)
+        // @todo, make sure that awareness by this.getDoc is eventually destroyed, or doesn't
+        // register a timeout anymore
         const { ydoc, storeReferences, redisLastId } = await this.getDoc(room, docid)
         const lastId = math.max(number.parseInt(redisLastId.split('-')[0]), number.parseInt(task.id.split('-')[0]))
         await this.store.persistDoc(room, docid, ydoc)
@@ -304,17 +298,7 @@ export class Api {
         ])
         logWorker('Compacted stream ', { stream: task.stream, taskId: task.id, newLastId: lastId - this.redisMinMessageLifetime })
         try {
-          if (ydocUpdateCallback != null) {
-            // call YDOC_UPDATE_CALLBACK here
-            const formData = new FormData()
-            // @todo only convert ydoc to updatev2 once
-            formData.append('ydoc', new Blob([Y.encodeStateAsUpdateV2(ydoc)]))
-            // @todo should add a timeout to fetch (see fetch signal abortcontroller)
-            const res = await fetch(new URL(room, ydocUpdateCallback), { body: formData, method: 'PUT' })
-            if (!res.ok) {
-              console.error(`Issue sending data to YDOC_UPDATE_CALLBACK. status="${res.status}" statusText="${res.statusText}"`)
-            }
-          }
+          await updateCallback(room, ydoc)
         } catch (e) {
           console.error(e)
         }
@@ -332,19 +316,29 @@ export class Api {
 }
 
 /**
+ * @typedef {Object} WorkerOpts
+ * @property {(room: string, ydoc: Y.Doc) => Promise<void>} [WorkerOpts.updateCallback]
+ * @property {number} [WorkerOpts.blockTime]
+ * @property {number} [WorkerOpts.tryReclaimCount]
+ * @property {number} [WorkerOpts.tryClaimCount]
+ */
+
+/**
  * @param {import('./storage.js').AbstractStorage} store
  * @param {string} redisPrefix
+ * @param {WorkerOpts} opts
  */
-export const createWorker = async (store, redisPrefix) => {
+export const createWorker = async (store, redisPrefix, opts) => {
   const a = await createApiClient(store, redisPrefix)
-  return new Worker(a)
+  return new Worker(a, opts)
 }
 
 export class Worker {
   /**
    * @param {Api} client
+   * @param {WorkerOpts} opts
    */
-  constructor (client) {
+  constructor (client, opts) {
     this.client = client
     logWorker('Created worker process ', { id: client.consumername, prefix: client.prefix, minMessageLifetime: client.redisMinMessageLifetime })
     ;(async () => {
@@ -352,7 +346,7 @@ export class Worker {
       const timeDiff = startRedisTime.getTime() - time.getUnixTime()
       while (!client._destroyed) {
         try {
-          const tasks = await client.consumeWorkerQueue()
+          const tasks = await client.consumeWorkerQueue(opts)
           if (tasks.length === 0 || (client.redisMinMessageLifetime > time.getUnixTime() + timeDiff - number.parseInt(tasks[0].id.split('-')[0]))) {
             await promise.wait(client.redisMinMessageLifetime / 2)
           }
