@@ -227,8 +227,12 @@ export class Api {
     const ydoc = new Y.Doc()
     const awareness = new awarenessProtocol.Awareness(ydoc)
     awareness.setLocalState(null) // we don't want to propagate awareness state
+    if (docstate) { Y.applyUpdateV2(ydoc, docstate.doc) }
+    let persistedDocChanged = false
+    ydoc.on('afterTransaction', tr => {
+      persistedDocChanged ||= tr.changed.size > 0
+    })
     ydoc.transact(() => {
-      if (docstate) { Y.applyUpdateV2(ydoc, docstate.doc) }
       docMessages?.messages.forEach(m => {
         const decoder = decoding.createDecoder(m)
         switch (decoding.readVarUint(decoder)) {
@@ -245,7 +249,7 @@ export class Api {
         }
       })
     })
-    return { ydoc, awareness, redisLastId: docMessages?.lastId.toString() || '0', storeReferences: docstate?.references || null }
+    return { ydoc, awareness, redisLastId: docMessages?.lastId.toString() || '0', storeReferences: docstate?.references || null, persistedDocChanged }
   }
 
   /**
@@ -285,9 +289,11 @@ export class Api {
         const { room, docid } = decodeRedisRoomStreamName(task.stream, this.prefix)
         // @todo, make sure that awareness by this.getDoc is eventually destroyed, or doesn't
         // register a timeout anymore
-        const { ydoc, storeReferences, redisLastId } = await this.getDoc(room, docid)
+        const { ydoc, storeReferences, redisLastId, persistedDocChanged } = await this.getDoc(room, docid)
         const lastId = math.max(number.parseInt(redisLastId.split('-')[0]), number.parseInt(task.id.split('-')[0]))
-        await this.store.persistDoc(room, docid, ydoc)
+        if (persistedDocChanged) {
+          await this.store.persistDoc(room, docid, ydoc)
+        }
         await promise.all([
           storeReferences ? this.store.deleteReferences(room, docid, storeReferences) : promise.resolve(),
           this.redis.multi()
@@ -298,7 +304,9 @@ export class Api {
         ])
         logWorker('Compacted stream ', { stream: task.stream, taskId: task.id, newLastId: lastId - this.redisMinMessageLifetime })
         try {
-          await updateCallback(room, ydoc)
+          if (persistedDocChanged) {
+            await updateCallback(room, ydoc)
+          }
         } catch (e) {
           console.error(e)
         }
