@@ -10,7 +10,6 @@ import * as promise from 'lib0/promise'
 
 /**
  * @typedef {Object} MemoryStorageOpts
- * @property {(room:string,docname:string)=>Promise<Y.Doc|null>} [MemoryStorageParams.populateDoc] Populate the doc if it doesn't exist yet in the database
  */
 
 /**
@@ -26,15 +25,14 @@ export const createMemoryStorage = (opts = {}) => new MemoryStorage(opts)
  */
 export class MemoryStorage {
   /**
-   * @param {MemoryStorageOpts} opts
+   * @param {MemoryStorageOpts} _opts
    */
-  constructor (opts) {
+  constructor (_opts) {
     /**
      * path := room.docid.referenceid
      * @type {Map<string, Map<string, Map<string, Uint8Array>>>}
      */
     this.docs = new Map()
-    this.populateDoc = opts.populateDoc ?? null
   }
 
   /**
@@ -59,13 +57,6 @@ export class MemoryStorage {
    */
   async retrieveDoc (room, docname) {
     const refs = this.docs.get(room)?.get(docname)
-    if (this.populateDoc != null && (refs == null || refs.size === 0)) {
-      const ydoc = await this.populateDoc(room, docname)
-      if (ydoc != null) {
-        await this.persistDoc(room, docname, ydoc)
-        return this.retrieveDoc(room, docname)
-      }
-    }
     return promise.resolveWith((refs == null || refs.size === 0) ? null : { doc: Y.mergeUpdatesV2(array.from(refs.values())), references: array.from(refs.keys()) })
   }
 

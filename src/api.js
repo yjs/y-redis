@@ -11,7 +11,6 @@ import * as math from 'lib0/math'
 import * as protocol from './protocol.js'
 import * as env from 'lib0/environment'
 import * as logging from 'lib0/logging'
-import * as time from 'lib0/time'
 
 const logWorker = logging.createModuleLogger('@y/redis/api/worker')
 // const logApi = logging.createModuleLogger('@y/redis/api')
@@ -102,14 +101,13 @@ export class Api {
     this.prefix = prefix
     this.consumername = random.uuidv4()
     /**
-     * After this timeout, a new worker will pick up the task
-     * @todo rename this variable
+     * After this timeout, a worker will pick up a task and clean up a stream.
      */
-    this.redisWorkerTimeout = number.parseInt(env.getConf('redis-task-timeout') || '600000')
+    this.redisTaskDebounce = number.parseInt(env.getConf('redis-task-debounce') || '10000') // default: 10 seconds
     /**
      * Minimum lifetime of y* update messages in redis streams.
      */
-    this.redisMinMessageLifetime = number.parseInt(env.getConf('redis-min-message-lifetime') || '60000')
+    this.redisMinMessageLifetime = number.parseInt(env.getConf('redis-min-message-lifetime') || '60000') // default: 1 minute
     this.redisWorkerStreamName = this.prefix + ':worker'
     this.redisWorkerGroupName = this.prefix + ':worker'
     this._destroyed = false
@@ -122,6 +120,7 @@ export class Api {
           SCRIPT: `
             if redis.call("EXISTS", KEYS[1]) == 0 then
               redis.call("XADD", "${this.redisWorkerStreamName}", "*", "compact", KEYS[1])
+              redis.call("XREADGROUP", "GROUP", "${this.redisWorkerGroupName}", "pending", "STREAMS", "${this.redisWorkerStreamName}", ">")
             end
             redis.call("XADD", KEYS[1], "*", "m", ARGV[1])
           `,
@@ -228,9 +227,9 @@ export class Api {
     const awareness = new awarenessProtocol.Awareness(ydoc)
     awareness.setLocalState(null) // we don't want to propagate awareness state
     if (docstate) { Y.applyUpdateV2(ydoc, docstate.doc) }
-    let persistedDocChanged = false
-    ydoc.on('afterTransaction', tr => {
-      persistedDocChanged ||= tr.changed.size > 0
+    let docChanged = false
+    ydoc.once('afterTransaction', tr => {
+      docChanged = tr.changed.size > 0
     })
     ydoc.transact(() => {
       docMessages?.messages.forEach(m => {
@@ -249,34 +248,28 @@ export class Api {
         }
       })
     })
-    return { ydoc, awareness, redisLastId: docMessages?.lastId.toString() || '0', storeReferences: docstate?.references || null, persistedDocChanged }
+    return { ydoc, awareness, redisLastId: docMessages?.lastId.toString() || '0', storeReferences: docstate?.references || null, docChanged }
   }
 
   /**
    * @param {WorkerOpts} opts
    */
-  async consumeWorkerQueue ({ blockTime = 1000, tryReclaimCount = 5, tryClaimCount = 5, updateCallback = async () => {} }) {
+  async consumeWorkerQueue ({ tryClaimCount = 5, updateCallback = async () => {} }) {
     /**
      * @type {Array<{stream: string, id: string}>}
      */
     const tasks = []
-    if (tryReclaimCount > 0) {
-      const reclaimedTasks = await this.redis.xAutoClaim(this.redisWorkerStreamName, this.redisWorkerGroupName, this.consumername, this.redisWorkerTimeout, '0', { COUNT: tryReclaimCount })
-      reclaimedTasks.messages.forEach(m => {
-        const stream = m?.message.compact
-        stream && tasks.push({ stream, id: m?.id })
-      })
+    const reclaimedTasks = await this.redis.xAutoClaim(this.redisWorkerStreamName, this.redisWorkerGroupName, this.consumername, this.redisTaskDebounce, '0', { COUNT: tryClaimCount })
+    reclaimedTasks.messages.forEach(m => {
+      const stream = m?.message.compact
+      stream && tasks.push({ stream, id: m?.id })
+    })
+    if (tasks.length === 0) {
+      logWorker('No tasks available, pausing..', { tasks })
+      await promise.wait(1000)
+      return []
     }
-    if (tryClaimCount > 0) {
-      const claimedTasks = await this.redis.xReadGroup(this.redisWorkerGroupName, this.consumername, { key: this.redisWorkerStreamName, id: '>' }, { COUNT: tryClaimCount - tasks.length, BLOCK: tasks.length === 0 ? blockTime : undefined })
-      claimedTasks?.forEach(task => {
-        task.messages.forEach(message => {
-          const stream = message.message.compact
-          stream && tasks.push({ stream, id: message.id })
-        })
-      })
-    }
-    tasks.length > 0 && logWorker('Accepted tasks ', { tasks })
+    logWorker('Accepted tasks ', { tasks })
     await promise.all(tasks.map(async task => {
       const streamlen = await this.redis.xLen(task.stream)
       if (streamlen === 0) {
@@ -289,27 +282,26 @@ export class Api {
         const { room, docid } = decodeRedisRoomStreamName(task.stream, this.prefix)
         // @todo, make sure that awareness by this.getDoc is eventually destroyed, or doesn't
         // register a timeout anymore
-        const { ydoc, storeReferences, redisLastId, persistedDocChanged } = await this.getDoc(room, docid)
+        const { ydoc, storeReferences, redisLastId, docChanged } = await this.getDoc(room, docid)
         const lastId = math.max(number.parseInt(redisLastId.split('-')[0]), number.parseInt(task.id.split('-')[0]))
-        if (persistedDocChanged) {
+        if (docChanged) {
+          try {
+            await updateCallback(room, ydoc)
+          } catch (e) {
+            console.error(e)
+          }
           await this.store.persistDoc(room, docid, ydoc)
         }
         await promise.all([
-          storeReferences ? this.store.deleteReferences(room, docid, storeReferences) : promise.resolve(),
+          storeReferences && docChanged ? this.store.deleteReferences(room, docid, storeReferences) : promise.resolve(),
           this.redis.multi()
             .xTrim(task.stream, 'MINID', lastId - this.redisMinMessageLifetime)
             .xAdd(this.redisWorkerStreamName, '*', { compact: task.stream })
+            .xReadGroup(this.redisWorkerGroupName, 'pending', { key: this.redisWorkerStreamName, id: '>' }, { COUNT: 50 }) // immediately claim this entry, will be picked up by worker after timeout
             .xDel(this.redisWorkerStreamName, task.id)
             .exec()
         ])
         logWorker('Compacted stream ', { stream: task.stream, taskId: task.id, newLastId: lastId - this.redisMinMessageLifetime })
-        try {
-          if (persistedDocChanged) {
-            await updateCallback(room, ydoc)
-          }
-        } catch (e) {
-          console.error(e)
-        }
       }
     }))
     return tasks
@@ -326,8 +318,6 @@ export class Api {
 /**
  * @typedef {Object} WorkerOpts
  * @property {(room: string, ydoc: Y.Doc) => Promise<void>} [WorkerOpts.updateCallback]
- * @property {number} [WorkerOpts.blockTime]
- * @property {number} [WorkerOpts.tryReclaimCount]
  * @property {number} [WorkerOpts.tryClaimCount]
  */
 
@@ -350,14 +340,9 @@ export class Worker {
     this.client = client
     logWorker('Created worker process ', { id: client.consumername, prefix: client.prefix, minMessageLifetime: client.redisMinMessageLifetime })
     ;(async () => {
-      const startRedisTime = await client.redis.time()
-      const timeDiff = startRedisTime.getTime() - time.getUnixTime()
       while (!client._destroyed) {
         try {
-          const tasks = await client.consumeWorkerQueue(opts)
-          if (tasks.length === 0 || (client.redisMinMessageLifetime > time.getUnixTime() + timeDiff - number.parseInt(tasks[0].id.split('-')[0]))) {
-            await promise.wait(client.redisMinMessageLifetime / 2)
-          }
+          await client.consumeWorkerQueue(opts)
         } catch (e) {
           console.error(e)
         }
