@@ -19,9 +19,13 @@ Postgres, or implement your own storage provider.
 
 ### Licensing
 
-Currently, this project is proprietary. This software is mainly targeted for large
-companies that want a scalable y-redis backend. Please contact me to buy a
-license: <kevin.jahns at pm.me>
+y-redis is dual-licensed (either [AGPL](./LICENSE) or proprietary).
+
+Please contact me to buy a license if you intend to use y-redis in your
+commercial product: <kevin.jahns at pm.me>
+
+Otherwise, you may use this software under the terms of the AGPL, which requires
+you to pubsh your source code under the terms of the AGPL too.
 
 ### Components
 
@@ -58,20 +62,6 @@ whether a specific client (authenticated via a JWT token) has access to a
 specific room / document. Example servers can be found in
 `/bin/auth-server-example.js` and `/demos/auth-express/server.js`.
 
-## Professional support
-
-As this server implementation is clearly intended for startups & large companies
-that want a scalable backend to their collaborative product, I thought about
-commercializing this piece of software. Ultimately I decided against it, because
-permissively licensed software like this has more positive impact on humanity
-overall. However, it does make sense to cantact me for a consulting call to
-evaluate whether this is the right approach for you. Any (small) contribution is
-highly appreciated.
-
-Please support my work by [becoming a
-sponsor](https://github.com/sponsors/dmonad) or hiring me as a consultant for
-professional support and security updates.
-
 ### Missing Features
 
 I'm looking for sponsors that want to sponsor the following work:
@@ -86,7 +76,7 @@ I'm looking for sponsors that want to sponsor the following work:
 - Perform expensive tasks (computing sync messages) in separate threads
 
 If you are interested in sponsoring some of this work, please send a mail to
-<kevin.jahns@pm.me>
+<kevin.jahns at pm.me>.
 
 # Quick Start (docker-compose)
 
@@ -199,7 +189,3 @@ npm start
 ```
 
 Open [`http://localhost:5173`](http://localhost:5173) in a browser.
-
-## License
-
-Proprietary - please contact me to buy a license <kevin.jahns at pm.me>

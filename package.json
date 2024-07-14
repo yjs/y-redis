@@ -59,7 +59,7 @@
     "Yjs"
   ],
   "author": "Kevin Jahns <kevin.jahns@protonmail.com>",
-  "license": "PROPRIETARY",
+  "license": "AGPL-3.0 OR PROPRIETARY",
   "bugs": {
     "url": "https://github.com/yjs/y-redis/issues"
   },
