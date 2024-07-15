@@ -46,11 +46,11 @@ export const createYWebsocketServer = async ({
   const app = uws.App({})
   await registerYWebsocketServer(app, '/:room', store, async (req) => {
     const room = req.getParameter(0)
-    const token = req.getQuery('yauth')
+    const headerWsProtocol = req.getHeader('sec-websocket-protocol')
+    const [, , token] = /(^|,)yauth-(((?!,).)*)/.exec(headerWsProtocol) ?? [null, null, req.getQuery('yauth')]
     if (token == null) {
       throw new Error('Missing Token')
     }
-
     // verify that the user has a valid token
     const { payload: userToken } = await jwt.verifyJwt(wsServerPublicKey, token)
     if (userToken.yuserid == null) {

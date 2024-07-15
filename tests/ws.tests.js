@@ -24,7 +24,7 @@ const authToken = await jwt.encodeJwt(utils.authPrivateKey, {
 const createWsClient = (tc, room) => {
   const ydoc = new Y.Doc()
   const roomPrefix = tc.testName
-  const provider = new WebsocketProvider(utils.yredisUrl, roomPrefix + '-' + room, ydoc, { WebSocketPolyfill: /** @type {any} */ (WebSocket), disableBc: true, params: { yauth: authToken } })
+  const provider = new WebsocketProvider(utils.yredisUrl, roomPrefix + '-' + room, ydoc, { WebSocketPolyfill: /** @type {any} */ (WebSocket), disableBc: true, params: {}, protocols: [`yauth-${authToken}`] })
   return { ydoc, provider }
 }
 

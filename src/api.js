@@ -294,6 +294,11 @@ export class Api {
         }
         await promise.all([
           storeReferences && docChanged ? this.store.deleteReferences(room, docid, storeReferences) : promise.resolve(),
+          // if `redisTaskDebounce` is small, or if updateCallback taskes too long, then we might
+          // add a task twice to this list.
+          // @todo either use a different datastructure or make sure that task doesn't exist yet
+          // before adding it to the worker queue
+          // This issue is not critical, as no data will be lost if this happens.
           this.redis.multi()
             .xTrim(task.stream, 'MINID', lastId - this.redisMinMessageLifetime)
             .xAdd(this.redisWorkerStreamName, '*', { compact: task.stream })
