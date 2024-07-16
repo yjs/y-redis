@@ -4,6 +4,7 @@ import * as promise from 'lib0/promise'
 import * as api from './api.js'
 import * as array from 'lib0/array'
 import * as encoding from 'lib0/encoding'
+import * as decoding from 'lib0/decoding'
 import * as protocol from './protocol.js'
 import * as logging from 'lib0/logging'
 import { createSubscriber } from './subscriber.js'
@@ -66,6 +67,11 @@ class User {
      * windows)
      */
     this.userid = userid
+    /**
+     * @type {number|null}
+     */
+    this.awarenessId = null
+    this.awarenessLastClock = 0
     this.isClosed = false
   }
 }
@@ -173,6 +179,17 @@ export const registerYWebsocketServer = async (app, pattern, store, checkAuth, {
         // awareness update
         message[0] === protocol.messageAwareness
       ) {
+        if (message[0] === protocol.messageAwareness) {
+          const decoder = decoding.createDecoder(message)
+          decoding.readVarUint(decoder) // read message type
+          decoding.readVarUint(decoder) // read length of awareness update
+          const alen = decoding.readVarUint(decoder) // number of awareness updates
+          const awId = decoding.readVarUint(decoder)
+          if (alen === 1 && (user.awarenessId === null || user.awarenessId === awId)) { // only update awareness if len=1
+            user.awarenessId = awId
+            user.awarenessLastClock = decoding.readVarUint(decoder)
+          }
+        }
         client.addMessage(user.room, 'index', message)
       } else if (message[0] === protocol.messageSync && message[1] === protocol.messageSyncStep1) { // sync step 1
         // can be safely ignored because we send the full initial state at the beginning
@@ -182,6 +199,7 @@ export const registerYWebsocketServer = async (app, pattern, store, checkAuth, {
     },
     close: (ws, code, message) => {
       const user = ws.getUserData()
+      user.awarenessId && client.addMessage(user.room, 'index', Buffer.from(protocol.encodeAwarenessUserDisconnected(user.awarenessId, user.awarenessLastClock)))
       user.isClosed = true
       log(() => ['client connection closed (uid=', user.id, ', code=', code, ', message="', Buffer.from(message).toString(), '")'])
       user.subs.forEach(topic => {

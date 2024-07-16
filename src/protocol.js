@@ -112,3 +112,18 @@ export const encodeAwarenessUpdate = (awareness, clients) => encoding.encode(enc
   encoding.writeVarUint(encoder, messageAwareness)
   encoding.writeVarUint8Array(encoder, awarenessProtocol.encodeAwarenessUpdate(awareness, clients))
 })
+
+/**
+ * @param {number} clientid
+ * @param {number} lastClock
+ */
+export const encodeAwarenessUserDisconnected = (clientid, lastClock) =>
+  encoding.encode(encoder => {
+    encoding.writeVarUint(encoder, messageAwareness)
+    encoding.writeVarUint8Array(encoder, encoding.encode(encoder => {
+      encoding.writeVarUint(encoder, 1) // one change
+      encoding.writeVarUint(encoder, clientid)
+      encoding.writeVarUint(encoder, lastClock + 1)
+      encoding.writeVarString(encoder, JSON.stringify(null))
+    }))
+  })
