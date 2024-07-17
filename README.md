@@ -25,7 +25,7 @@ Please contact me to buy a license if you intend to use y-redis in your
 commercial product: <kevin.jahns at pm.me>
 
 Otherwise, you may use this software under the terms of the AGPL, which requires
-you to pubsh your source code under the terms of the AGPL too.
+you to publish your source code under the terms of the AGPL too.
 
 ### Components
 
