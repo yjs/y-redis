@@ -282,14 +282,17 @@ export class Api {
         const { room, docid } = decodeRedisRoomStreamName(task.stream, this.prefix)
         // @todo, make sure that awareness by this.getDoc is eventually destroyed, or doesn't
         // register a timeout anymore
+        logWorker('requesting doc from store')
         const { ydoc, storeReferences, redisLastId, docChanged } = await this.getDoc(room, docid)
         const lastId = math.max(number.parseInt(redisLastId.split('-')[0]), number.parseInt(task.id.split('-')[0]))
         if (docChanged) {
           try {
+            logWorker('doc changed, calling update callback')
             await updateCallback(room, ydoc)
           } catch (e) {
             console.error(e)
           }
+          logWorker('persisting doc')
           await this.store.persistDoc(room, docid, ydoc)
         }
         await promise.all([
