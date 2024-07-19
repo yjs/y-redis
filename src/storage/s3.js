@@ -4,6 +4,9 @@ import * as promise from 'lib0/promise'
 import * as minio from 'minio'
 import * as env from 'lib0/environment'
 import * as number from 'lib0/number'
+import * as logging from 'lib0/logging'
+
+const log = logging.createModuleLogger('@y/redis/s3')
 
 /**
  * @typedef {import('../storage.js').AbstractStorage} AbstractStorage
@@ -104,13 +107,17 @@ export class S3Storage {
    * @return {Promise<{ doc: Uint8Array, references: Array<string> } | null>}
    */
   async retrieveDoc (room, docname) {
+    log('retrieving doc room=' + room + ' docname=' + docname)
     const objNames = await this.client.listObjectsV2(this.bucketName, encodeS3ObjectName(room, docname, ''), true).toArray()
     const references = objNames.map(obj => obj.name)
+    log('retrieved doc room=' + room + ' docname=' + docname + ' refs=' + JSON.stringify(references))
+
     if (references.length === 0) {
       return null
     }
     let updates = await promise.all(references.map(ref => this.client.getObject(this.bucketName, ref).then(readStream)))
     updates = updates.filter(update => update != null)
+    log('retrieved doc room=' + room + ' docname=' + docname + ' updatesLen=' + updates.length)
     return { doc: Y.mergeUpdatesV2(updates), references }
   }
 

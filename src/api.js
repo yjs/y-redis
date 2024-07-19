@@ -13,7 +13,7 @@ import * as env from 'lib0/environment'
 import * as logging from 'lib0/logging'
 
 const logWorker = logging.createModuleLogger('@y/redis/api/worker')
-// const logApi = logging.createModuleLogger('@y/redis/api')
+const logApi = logging.createModuleLogger('@y/redis/api')
 
 export const redisUrl = env.ensureConf('redis')
 
@@ -220,9 +220,12 @@ export class Api {
    * @param {string} docid
    */
   async getDoc (room, docid) {
+    logApi(`getDoc(${room}, ${docid})`)
     const ms = extractMessagesFromStreamReply(await this.redis.xRead(redis.commandOptions({ returnBuffers: true }), { key: computeRedisRoomStreamName(room, docid, this.prefix), id: '0' }), this.prefix)
+    logApi(`getDoc(${room}, ${docid}) - retrieved messages`)
     const docMessages = ms.get(room)?.get(docid) || null
     const docstate = await this.store.retrieveDoc(room, docid)
+    logApi(`getDoc(${room}, ${docid}) - retrieved doc`)
     const ydoc = new Y.Doc()
     const awareness = new awarenessProtocol.Awareness(ydoc)
     awareness.setLocalState(null) // we don't want to propagate awareness state
@@ -284,6 +287,7 @@ export class Api {
         // register a timeout anymore
         logWorker('requesting doc from store')
         const { ydoc, storeReferences, redisLastId, docChanged } = await this.getDoc(room, docid)
+        logWorker('retrieved doc from store. redisLastId=' + redisLastId, ' storeRefs=' + JSON.stringify(storeReferences))
         const lastId = math.max(number.parseInt(redisLastId.split('-')[0]), number.parseInt(task.id.split('-')[0]))
         if (docChanged) {
           try {
