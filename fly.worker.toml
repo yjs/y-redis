@@ -9,6 +9,9 @@ primary_region = 'mad'
 [build]
   dockerfile = 'Dockerfile.worker'
 
+[env]
+NODE_ENV = "production"
+
 [[vm]]
   memory = '1gb'
   cpu_kind = 'shared'

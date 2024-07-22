@@ -9,6 +9,9 @@ primary_region = 'mad'
 [build]
 dockerfile = 'Dockerfile.server'
 
+[env]
+NODE_ENV = "production"
+
 [http_service]
 internal_port = 3002
 force_https = true

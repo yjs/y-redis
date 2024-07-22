@@ -25,6 +25,7 @@ if (s3Endpoint) {
   console.log('using postgres store')
   const { createPostgresStorage } = await import('../src/storage/postgres.js')
   store = await createPostgresStorage()
+  console.log("env", process.env.NODE_ENV);
 } else {
   console.log('ATTENTION! using in-memory store')
   const { createMemoryStorage } = await import('../src/storage/memory.js')
