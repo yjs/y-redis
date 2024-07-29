@@ -8,9 +8,6 @@ import * as json from 'lib0/json'
 import { registerYWebsocketServer } from '../src/ws.js'
 import * as promise from 'lib0/promise'
 
-const wsServerPublicKey = await ecdsa.importKeyJwk(json.parse(env.ensureConf('auth-public-key')))
-// const wsServerPrivateKey = await ecdsa.importKeyJwk(json.parse(env.ensureConf('auth-private-key')))
-
 class YWebsocketServer {
   /**
    * @param {uws.TemplatedApp} app
@@ -52,6 +49,7 @@ export const createYWebsocketServer = async ({
       throw new Error('Missing Token')
     }
     // verify that the user has a valid token
+    const wsServerPublicKey = await ecdsa.importKeyJwk(json.parse(env.ensureConf('auth-public-key')))
     const { payload: userToken } = await jwt.verifyJwt(wsServerPublicKey, token)
     if (userToken.yuserid == null) {
       throw new Error('Missing userid in user token!')
