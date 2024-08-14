@@ -170,6 +170,8 @@ export const registerYWebsocketServer = async (
           ws.send(protocol.encodeAwarenessUpdate(indexDoc.awareness, array.from(indexDoc.awareness.states.keys())), true, true)
         }
       })
+      // awareness is destroyed here to avoid memory leaks, see: https://github.com/yjs/y-redis/issues/24
+      indexDoc.awareness.destroy()
       if (api.isSmallerRedisId(indexDoc.redisLastId, user.initialRedisSubId)) {
         // our subscription is newer than the content that we received from the api
         // need to renew subscription id and make sure that we catch the latest content.
