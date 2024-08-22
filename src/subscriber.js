@@ -1,6 +1,6 @@
-import * as api from './api.js'
-import * as map from 'lib0/map'
 import * as array from 'lib0/array'
+import * as map from 'lib0/map'
+import * as api from './api.js'
 
 /**
  * @typedef {function(string,Array<Uint8Array>):void} SubHandler
@@ -33,9 +33,10 @@ const run = async subscriber => {
 /**
  * @param {import('./storage.js').AbstractStorage} store
  * @param {string} redisPrefix
+ * @param {import('redis').RedisClientType | import('ioredis').Redis} redisInstance
  */
-export const createSubscriber = async (store, redisPrefix) => {
-  const client = await api.createApiClient(store, redisPrefix)
+export const createSubscriber = async (store, redisPrefix, redisInstance) => {
+  const client = await api.createApiClient(store, redisPrefix, redisInstance)
   return new Subscriber(client)
 }
 

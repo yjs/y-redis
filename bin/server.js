@@ -1,14 +1,18 @@
 #!/usr/bin/env node
 
-import * as number from 'lib0/number'
-import * as env from 'lib0/environment'
 import * as yredis from '@y/redis'
+import * as env from 'lib0/environment'
+import * as number from 'lib0/number'
+import * as redis from 'redis'
 
 const port = number.parseInt(env.getConf('port') || '3002')
 const redisPrefix = env.getConf('redis-prefix') || 'y'
 const postgresUrl = env.getConf('postgres')
 const s3Endpoint = env.getConf('s3-endpoint')
 const checkPermCallbackUrl = env.ensureConf('AUTH_PERM_CALLBACK')
+
+const redisUrl = env.getConf('REDIS_URL') || 'redis://localhost:6379'
+const redisInstance = await redis.createClient({ url: redisUrl }).connect()
 
 let store
 if (s3Endpoint) {
@@ -30,4 +34,4 @@ if (s3Endpoint) {
   store = createMemoryStorage()
 }
 
-yredis.createYWebsocketServer({ port, store, checkPermCallbackUrl, redisPrefix })
+yredis.createYWebsocketServer({ port, store, checkPermCallbackUrl, redisPrefix, redisInstance })

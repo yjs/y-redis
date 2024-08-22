@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 
-import * as env from 'lib0/environment'
 import * as yredis from '@y/redis'
+import * as env from 'lib0/environment'
+import { createClient } from 'redis'
 import * as Y from 'yjs'
 
 const redisPrefix = env.getConf('redis-prefix') || 'y'
 const postgresUrl = env.getConf('postgres')
 const s3Endpoint = env.getConf('s3-endpoint')
+const redisUrl = env.getConf('REDIS_URL') || 'redis://localhost:6379'
+const redisInstance = await createClient({ url: redisUrl }).connect()
 
 let store
 if (s3Endpoint) {
@@ -52,4 +55,4 @@ const updateCallback = async (room, ydoc) => {
 
 yredis.createWorker(store, redisPrefix, {
   updateCallback
-})
+}, redisInstance)

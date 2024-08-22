@@ -1,12 +1,12 @@
-import * as Y from 'yjs'
-import * as uws from 'uws'
-import * as promise from 'lib0/promise'
-import * as api from './api.js'
 import * as array from 'lib0/array'
-import * as encoding from 'lib0/encoding'
 import * as decoding from 'lib0/decoding'
-import * as protocol from './protocol.js'
+import * as encoding from 'lib0/encoding'
 import * as logging from 'lib0/logging'
+import * as promise from 'lib0/promise'
+import * as uws from 'uws'
+import * as Y from 'yjs'
+import * as api from './api.js'
+import * as protocol from './protocol.js'
 import { createSubscriber } from './subscriber.js'
 
 const log = logging.createModuleLogger('@y/redis/ws')
@@ -29,13 +29,13 @@ class YWebsocketServer {
    * @param {api.Api} client
    * @param {import('./subscriber.js').Subscriber} subscriber
    */
-  constructor (app, client, subscriber) {
+  constructor(app, client, subscriber) {
     this.app = app
     this.subscriber = subscriber
     this.client = client
   }
 
-  async destroy () {
+  async destroy() {
     this.subscriber.destroy()
     await this.client.destroy()
   }
@@ -49,7 +49,7 @@ class User {
    * @param {boolean} hasWriteAccess
    * @param {string} userid identifies the user globally.
    */
-  constructor (room, hasWriteAccess, userid) {
+  constructor(room, hasWriteAccess, userid) {
     this.room = room
     this.hasWriteAccess = hasWriteAccess
     /**
@@ -88,17 +88,19 @@ class User {
  * called several times, until some content exists. So you need to handle concurrent calls.
  * @param {(ws:uws.WebSocket<User>)=>void} [conf.openWsCallback] - called when a websocket connection is opened
  * @param {(ws:uws.WebSocket<User>,code:number,message:ArrayBuffer)=>void} [conf.closeWsCallback] - called when a websocket connection is closed
+ * @param {import('redis').RedisClientType | import('ioredis').Redis} redisInstance
  */
 export const registerYWebsocketServer = async (
-  app, 
-  pattern, 
-  store, 
-  checkAuth, 
-  { redisPrefix = 'y', initDocCallback = () => {}, openWsCallback = () => {}, closeWsCallback = () => {} } = {}
+  app,
+  pattern,
+  store,
+  checkAuth,
+  { redisPrefix = 'y', initDocCallback = () => { }, openWsCallback = () => { }, closeWsCallback = () => { } } = {},
+  redisInstance,
 ) => {
   const [client, subscriber] = await promise.all([
-    api.createApiClient(store, redisPrefix),
-    createSubscriber(store, redisPrefix)
+    api.createApiClient(store, redisPrefix, redisInstance),
+    createSubscriber(store, redisPrefix, redisInstance)
   ])
   /**
    * @param {string} stream
@@ -115,7 +117,7 @@ export const registerYWebsocketServer = async (
       }))
     app.publish(stream, message, true, false)
   }
-  app.ws(pattern, /** @type {uws.WebSocketBehavior<User>} */ ({
+  app.ws(pattern, /** @type {uws.WebSocketBehavior<User>} */({
     compression: uws.SHARED_COMPRESSOR,
     maxPayloadLength: 100 * 1024 * 1024,
     idleTimeout: 60,
@@ -170,8 +172,10 @@ export const registerYWebsocketServer = async (
           ws.send(protocol.encodeAwarenessUpdate(indexDoc.awareness, array.from(indexDoc.awareness.states.keys())), true, true)
         }
       })
+
       // awareness is destroyed here to avoid memory leaks, see: https://github.com/yjs/y-redis/issues/24
       indexDoc.awareness.destroy()
+
       if (api.isSmallerRedisId(indexDoc.redisLastId, user.initialRedisSubId)) {
         // our subscription is newer than the content that we received from the api
         // need to renew subscription id and make sure that we catch the latest content.

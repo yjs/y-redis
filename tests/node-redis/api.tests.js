@@ -1,12 +1,17 @@
-import * as Y from 'yjs'
-import * as t from 'lib0/testing'
-import * as api from '../src/api.js'
 import * as encoding from 'lib0/encoding'
 import * as promise from 'lib0/promise'
-import * as redis from 'redis'
-import { prevClients, store } from './utils.js'
+import * as t from 'lib0/testing'
+import { createClient } from 'redis'
+import * as Y from 'yjs'
+import * as api from '../../src/api.js'
+import { redisUrl, store } from '../utils.js'
 
-const redisPrefix = 'ytests'
+const redisPrefix = 'ytestsnoderedis'
+/**
+ * @type {Array<{ destroy: function():Promise<void>}>}
+ */
+const prevClients = []
+
 
 /**
  * @param {t.TestCase} tc
@@ -14,15 +19,17 @@ const redisPrefix = 'ytests'
 const createTestCase = async tc => {
   await promise.all(prevClients.map(c => c.destroy()))
   prevClients.length = 0
-  const redisClient = redis.createClient({ url: api.redisUrl })
+  const redisClient = createClient({ url: redisUrl })
   await redisClient.connect()
+
   // flush existing content
   const keysToDelete = await redisClient.keys(redisPrefix + ':*')
   keysToDelete.length > 0 && await redisClient.del(keysToDelete)
   await redisClient.quit()
-  const client = await api.createApiClient(store, redisPrefix)
+  const redisInstance = await createClient({ url: redisUrl }).connect()
+  const client = await api.createApiClient(store, redisPrefix, redisInstance)
   prevClients.push(client)
-  const room = tc.testName
+  const room = tc.testName + "NODEREDIS"
   const docid = 'main'
   const stream = api.computeRedisRoomStreamName(room, docid, redisPrefix)
   const ydoc = new Y.Doc()
@@ -39,12 +46,13 @@ const createTestCase = async tc => {
     ydoc,
     room,
     docid,
-    stream
+    stream,
   }
 }
 
 const createWorker = async () => {
-  const worker = await api.createWorker(store, redisPrefix, {})
+  const redisInstance = await createClient({ url: redisUrl }).connect()
+  const worker = await api.createWorker(store, redisPrefix, {}, redisInstance)
   worker.client.redisMinMessageLifetime = 10000
   worker.client.redisTaskDebounce = 5000
   prevClients.push(worker.client)
@@ -80,6 +88,6 @@ export const testWorker = async tc => {
   t.assert(loadedDoc.getMap().get('key2') === 'val2')
   let workertasksEmpty = false
   while (!workertasksEmpty) {
-    workertasksEmpty = await client.redis.xLen(client.redisWorkerStreamName) === 0
+    workertasksEmpty = await client.redis.getEntriesLen(client.redisWorkerStreamName) === 0
   }
 }
