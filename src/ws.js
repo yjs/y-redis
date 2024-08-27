@@ -88,7 +88,7 @@ class User {
  * called several times, until some content exists. So you need to handle concurrent calls.
  * @param {(ws:uws.WebSocket<User>)=>void} [conf.openWsCallback] - called when a websocket connection is opened
  * @param {(ws:uws.WebSocket<User>,code:number,message:ArrayBuffer)=>void} [conf.closeWsCallback] - called when a websocket connection is closed
- * @param {import('redis').RedisClientType | import('ioredis').Redis} redisInstance
+ * @param {() => Promise<import('redis').RedisClientType | import('ioredis').Redis>} createRedisInstance
  */
 export const registerYWebsocketServer = async (
   app,
@@ -96,11 +96,11 @@ export const registerYWebsocketServer = async (
   store,
   checkAuth,
   { redisPrefix = 'y', initDocCallback = () => { }, openWsCallback = () => { }, closeWsCallback = () => { } } = {},
-  redisInstance,
+  createRedisInstance,
 ) => {
   const [client, subscriber] = await promise.all([
-    api.createApiClient(store, redisPrefix, redisInstance),
-    createSubscriber(store, redisPrefix, redisInstance)
+    api.createApiClient(store, redisPrefix, createRedisInstance),
+    createSubscriber(store, redisPrefix, createRedisInstance)
   ])
   /**
    * @param {string} stream

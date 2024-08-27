@@ -12,7 +12,7 @@ const s3Endpoint = env.getConf('s3-endpoint')
 const checkPermCallbackUrl = env.ensureConf('AUTH_PERM_CALLBACK')
 
 const redisUrl = env.getConf('REDIS_URL') || 'redis://localhost:6379'
-const redisInstance = await redis.createClient({ url: redisUrl }).connect()
+const createRedisInstance = async () =>  redis.createClient({ url: redisUrl }).connect()
 
 let store
 if (s3Endpoint) {
@@ -34,4 +34,4 @@ if (s3Endpoint) {
   store = createMemoryStorage()
 }
 
-yredis.createYWebsocketServer({ port, store, checkPermCallbackUrl, redisPrefix, redisInstance })
+yredis.createYWebsocketServer({ port, store, checkPermCallbackUrl, redisPrefix, createRedisInstance })

@@ -17,6 +17,9 @@ const redisPrefix = 'ytestsioredis'
  * @type {Array<{ destroy: function():Promise<void>}>}
  */
 const prevClients = []
+const createRedisInstance = async () => {
+  return new Redis(redisUrl)
+}
 
 const authToken = await jwt.encodeJwt(authPrivateKey, {
   iss: 'my-auth-server',
@@ -36,8 +39,7 @@ const createWsClient = (tc, room) => {
 }
 
 const createWorker = async () => {
-  const redisInstance = new Redis(redisUrl)
-  const worker = await api.createWorker(store, redisPrefix, {}, redisInstance)
+  const worker = await api.createWorker(store, redisPrefix, {}, createRedisInstance)
   worker.client.redisMinMessageLifetime = 800
   worker.client.redisTaskDebounce = 500
   prevClients.push(worker.client)
@@ -45,9 +47,7 @@ const createWorker = async () => {
 }
 
 const createServer = async () => {
-  const redisInstance = new Redis(redisUrl)
-
-  const server = await createYWebsocketServer({ port: yredisPort, store: store, redisPrefix: redisPrefix, checkPermCallbackUrl: checkPermCallbackUrl, redisInstance })
+  const server = await createYWebsocketServer({ port: yredisPort, store: store, redisPrefix: redisPrefix, checkPermCallbackUrl: checkPermCallbackUrl, createRedisInstance })
   prevClients.push(server)
   return server
 }
@@ -58,7 +58,7 @@ const createServer = async () => {
 const createApiClient = async () => {
   const redis = new Redis(redisUrl)
 
-  const client = await api.createApiClient(store, redisPrefix, redis)
+  const client = await api.createApiClient(store, redisPrefix, createRedisInstance)
   prevClients.push(client)
   return client
 }

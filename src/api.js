@@ -81,10 +81,10 @@ const decodeRedisRoomStreamName = (rediskey, expectedPrefix) => {
 /**
  * @param {import('./storage.js').AbstractStorage} store
  * @param {string} redisPrefix
- * @param {import('redis').RedisClientType | IoRedis} redisInstance
+ * @param {() => Promise<import('redis').RedisClientType | import('ioredis').Redis>} createRedisInstance
  */
-export const createApiClient = async (store, redisPrefix, redisInstance) => {
-  const a = new Api(store, redisPrefix, redisInstance)
+export const createApiClient = async (store, redisPrefix, createRedisInstance) => {
+  const a = new Api(store, redisPrefix, await createRedisInstance())
   try {
     await a.redis.createGroup()
   } catch (e) {
@@ -303,10 +303,10 @@ export class Api {
  * @param {import('./storage.js').AbstractStorage} store
  * @param {string} redisPrefix
  * @param {WorkerOpts} opts
- * @param {import('redis').RedisClientType | IoRedis} redisInstance
+ * @param {() => Promise<import('redis').RedisClientType | import('ioredis').Redis>} createRedisInstance
  */
-export const createWorker = async (store, redisPrefix, opts, redisInstance) => {
-  const a = await createApiClient(store, redisPrefix, redisInstance)
+export const createWorker = async (store, redisPrefix, opts, createRedisInstance) => {
+  const a = await createApiClient(store, redisPrefix, createRedisInstance)
   return new Worker(a, opts)
 }
 
