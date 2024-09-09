@@ -48,8 +48,10 @@ class User {
    * @param {string} room
    * @param {boolean} hasWriteAccess
    * @param {string} userid identifies the user globally.
+   * @param {Partial<CloseEvent> | null} [error]
    */
-  constructor(room, hasWriteAccess, userid) {
+  constructor(room, hasWriteAccess, userid, error = null) {
+    this.error = error
     this.room = room
     this.hasWriteAccess = hasWriteAccess
     /**
@@ -80,7 +82,7 @@ class User {
  * @param {uws.TemplatedApp} app
  * @param {uws.RecognizedString} pattern
  * @param {import('./storage.js').AbstractStorage} store
- * @param {function(uws.HttpRequest): Promise<{ hasWriteAccess: boolean, room: string, userid: string }>} checkAuth
+ * @param {function(uws.HttpRequest): Promise<{ hasWriteAccess: boolean, room: string, userid: string, error: Partial<CloseEvent> | null }>} checkAuth
  * @param {Object} conf
  * @param {string} [conf.redisPrefix]
  * @param {(room:string,docname:string,client:api.Api)=>void} [conf.initDocCallback] - this is called when a doc is
@@ -134,11 +136,11 @@ export const registerYWebsocketServer = async (
           aborted = true
         })
         try {
-          const { hasWriteAccess, room, userid } = await checkAuth(req)
+          const { hasWriteAccess, room, userid, error } = await checkAuth(req)
           if (aborted) return
           res.cork(() => {
             res.upgrade(
-              new User(room, hasWriteAccess, userid),
+              new User(room, hasWriteAccess, userid, error),
               headerWsKey,
               headerWsProtocol,
               headerWsExtensions,
@@ -163,6 +165,15 @@ export const registerYWebsocketServer = async (
       try {
         const user = ws.getUserData()
         log(() => ['client connected (uid=', user.id, ', ip=', Buffer.from(ws.getRemoteAddressAsText()).toString(), ')'])
+
+        if (user.error != null) {
+          console.log('Closing connection because of error', user.error)
+          const { code, reason } = user.error
+          ws.end(code, reason)
+          return
+
+        }
+
         openWsCallback(ws);
         const stream = api.computeRedisRoomStreamName(user.room, 'index', redisPrefix)
         user.subs.add(stream)
