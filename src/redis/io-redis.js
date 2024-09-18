@@ -132,6 +132,20 @@ export class IoRedisAdapter {
         return reclaimedTasksRes
     }
 
+    async getDeletedDocEntries() {
+        const deletedDocEntries = await this.redis.xrange('delete', '-', '+')
+        const transformedDeletedTasks = transformStreamMessagesReply(deletedDocEntries)
+        
+        return transformedDeletedTasks
+    }
+
+    /**
+     * @param {string} id
+     */
+    async deleteDeleteDocEntry(id) {
+        this.redis.xdel('delete', id)
+    }
+
     /**
      * @param {{ stream: import("ioredis").RedisKey; id: any; }} task
      */

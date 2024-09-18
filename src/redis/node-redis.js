@@ -133,6 +133,19 @@ export class NodeRedisAdapter {
         return reclaimedTasks
     }
 
+    async getDeletedDocEntries() {
+        const deletedDocEntries = await this.redis.xRange('delete', '-', '+');
+        
+        return deletedDocEntries
+    }
+
+    /**
+     * @param {string} id
+     */
+    async deleteDeleteDocEntry(id) {
+        this.redis.xDel('delete', id)
+    }
+
     /**
      * @param {{ stream: import("ioredis").RedisKey; id: any; }} task
      */
