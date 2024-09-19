@@ -1,10 +1,10 @@
-import * as Y from 'yjs'
-import * as random from 'lib0/random'
-import * as promise from 'lib0/promise'
-import * as minio from 'minio'
 import * as env from 'lib0/environment'
-import * as number from 'lib0/number'
 import * as logging from 'lib0/logging'
+import * as number from 'lib0/number'
+import * as promise from 'lib0/promise'
+import * as random from 'lib0/random'
+import * as minio from 'minio'
+import * as Y from 'yjs'
 
 const log = logging.createModuleLogger('@y/redis/s3')
 
@@ -140,6 +140,18 @@ export class S3Storage {
   async deleteReferences (_room, _docname, storeReferences) {
     await this.client.removeObjects(this.bucketName, storeReferences)
   }
+
+  /**
+   * 
+   * @param {string} room 
+   * @param {string} docname 
+   */
+  async deleteDocument(room, docname) {
+    const objNames = await this.client.listObjectsV2(this.bucketName, encodeS3ObjectName(room, docname, ''), true).toArray()
+		const objectsList = objNames.map(obj => obj.name)
+
+		await this.client.removeObjects(this.bucketName, objectsList);
+	}
 
   async destroy () {
   }

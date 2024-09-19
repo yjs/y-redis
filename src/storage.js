@@ -1,5 +1,5 @@
-import * as Y from 'yjs'
 import * as err from 'lib0/error'
+import * as Y from 'yjs'
 
 export class AbstractStorage {
   /**
@@ -41,6 +41,15 @@ export class AbstractStorage {
    * @return {Promise<void>}
    */
   deleteReferences (_room, _docname, _storeReferences) {
+    err.methodUnimplemented()
+  }
+
+  /**
+   * @param {string} room
+   * @param {string} docname
+   * @return {Promise<void>}
+   */
+  deleteDocument (room, docname) {
     err.methodUnimplemented()
   }
 
