@@ -8,8 +8,7 @@
 # docker run -p 3002:3002 --env-file ./.env y-redis npm run start:server
 
 # Use an official Node.js runtime as a parent image
-# FROM node:20-alpine
-FROM node:lts-alpine3.19
+FROM node:20-alpine
 
 # Install glibc compatibility for alpine
 # See more at https://wiki.alpinelinux.org/wiki/Running_glibc_programs
