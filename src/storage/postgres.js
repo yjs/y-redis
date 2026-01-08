@@ -15,15 +15,31 @@ export const createPostgresStorage = async ({ database } = {}) => {
   // postgres://username:password@host:port/database
   const postgresUrl = env.ensureConf('postgres')
   const postgresConf = {}
+  // If a specific database is requested, ensure it exists
   if (database) {
     postgresConf.database = database
+    // Connect to the default database to check/create the target database
+    const defaultSql = postgres(postgresUrl)
+    try {
+      const dbExists = await defaultSql`
+        SELECT EXISTS (
+          SELECT FROM pg_database WHERE datname = ${database}
+        );
+      `
+      if (!dbExists || dbExists.length === 0 || !dbExists[0].exists) {
+        await defaultSql.unsafe(`CREATE DATABASE ${database}`)
+      }
+    } finally {
+      await defaultSql.end({ timeout: 5 })
+    }
   }
-  const sql = postgres(postgresUrl, { database })
+
+  const sql = postgres(postgresUrl, postgresConf)
   const docsTableExists = await sql`
     SELECT EXISTS (
-      SELECT FROM 
+      SELECT FROM
           pg_tables
-      WHERE 
+      WHERE
           tablename  = 'yredis_docs_v1'
     );
   `

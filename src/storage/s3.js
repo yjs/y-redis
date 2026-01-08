@@ -111,7 +111,6 @@ export class S3Storage {
     const objNames = await this.client.listObjectsV2(this.bucketName, encodeS3ObjectName(room, docname, ''), true).toArray()
     const references = objNames.map(obj => obj.name)
     log('retrieved doc room=' + room + ' docname=' + docname + ' refs=' + JSON.stringify(references))
-
     if (references.length === 0) {
       return null
     }
