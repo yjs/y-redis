@@ -21,7 +21,7 @@ export const testStorages = async _tc => {
     await s3.client.removeObjects(s3TestBucketName, files.map(file => file.name))
   } catch (e) {}
   const postgres = await createPostgresStorage({ database: env.ensureConf('postgres-testdb') })
-  await postgres.sql`DELETE from yredis_docs_v1`
+  await postgres.sql`DELETE from yredis_docs_v2`
   const memory = createMemoryStorage()
 
   /**

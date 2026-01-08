@@ -24,7 +24,8 @@ const createTestCase = async tc => {
   prevClients.push(client)
   const room = tc.testName
   const docid = 'main'
-  const stream = api.computeRedisRoomStreamName(room, docid, redisPrefix)
+  const branch = 'main'
+  const stream = api.computeRedisRoomStreamName(room, docid, branch, redisPrefix)
   const ydoc = new Y.Doc()
   ydoc.on('update', update => {
     const m = encoding.encode(encoder => {

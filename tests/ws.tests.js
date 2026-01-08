@@ -98,7 +98,7 @@ export const testSyncAndCleanup = async tc => {
   t.info('docs syncing (0)')
   await waitDocsSynced(doc1, doc2)
   t.info('docs synced (1)')
-  const docStreamExistsBefore = await redisClient.exists(api.computeRedisRoomStreamName(tc.testName + '-' + 'map', 'index', utils.redisPrefix))
+  const docStreamExistsBefore = await redisClient.exists(api.computeRedisRoomStreamName(tc.testName + '-' + 'map', 'index', 'main', utils.redisPrefix))
   t.assert(doc2.getMap().get('a') === 1)
   // doc3 can retrieve older changes from stream
   const { ydoc: doc3 } = createWsClient('map')
@@ -106,7 +106,7 @@ export const testSyncAndCleanup = async tc => {
   t.info('docs synced (2)')
   t.assert(doc3.getMap().get('a') === 1)
   await promise.wait(worker.client.redisMinMessageLifetime * 5)
-  const docStreamExists = await redisClient.exists(api.computeRedisRoomStreamName(tc.testName + '-' + 'map', 'index', utils.redisPrefix))
+  const docStreamExists = await redisClient.exists(api.computeRedisRoomStreamName(tc.testName + '-' + 'map', 'index', 'main', utils.redisPrefix))
   const workerLen = await redisClient.xLen(utils.redisPrefix + ':worker')
   t.assert(!docStreamExists && docStreamExistsBefore)
   t.assert(workerLen === 0)

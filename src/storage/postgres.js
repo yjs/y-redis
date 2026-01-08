@@ -40,19 +40,21 @@ export const createPostgresStorage = async ({ database } = {}) => {
       SELECT FROM
           pg_tables
       WHERE
-          tablename  = 'yredis_docs_v1'
+          tablename  = 'yredis_docs_v2'
     );
   `
   // we perform a check beforehand to avoid a pesky log message if the table already exists
   if (!docsTableExists || docsTableExists.length === 0 || !docsTableExists[0].exists) {
     await sql`
-      CREATE TABLE IF NOT EXISTS yredis_docs_v1 (
+      CREATE TABLE IF NOT EXISTS yredis_docs_v2 (
           room        text,
           doc         text,
+          branch      text DEFAULT 'main',
+          gc          boolean DEFAULT true,
           r           SERIAL,
           update      bytea,
           sv          bytea,
-          PRIMARY KEY (room,doc,r)
+          PRIMARY KEY (room,doc,branch,gc,r)
       );
     `
   }
@@ -78,25 +80,31 @@ class PostgresStorage {
    * @param {string} room
    * @param {string} docname
    * @param {Y.Doc} ydoc
+   * @param {Object} opts
+   * @param {boolean} [opts.gc]
+   * @param {string} [opts.branch]
    * @returns {Promise<void>}
    */
-  async persistDoc (room, docname, ydoc) {
+  async persistDoc (room, docname, ydoc, { gc = true, branch = 'main' } = {}) {
     await this.sql`
-      INSERT INTO yredis_docs_v1 (room,doc,r,update, sv)
-      VALUES (${room},${docname},DEFAULT,${Y.encodeStateAsUpdateV2(ydoc)},${Y.encodeStateVector(ydoc)})
+      INSERT INTO yredis_docs_v2 (room,doc,branch,gc,r,update,sv)
+      VALUES (${room},${docname},${branch},${gc},DEFAULT,${Y.encodeStateAsUpdateV2(ydoc)},${Y.encodeStateVector(ydoc)})
     `
   }
 
   /**
    * @param {string} room
    * @param {string} docname
+   * @param {Object} opts
+   * @param {boolean} [opts.gc]
+   * @param {string} [opts.branch]
    * @return {Promise<{ doc: Uint8Array, references: Array<number> } | null>}
    */
-  async retrieveDoc (room, docname) {
+  async retrieveDoc (room, docname, { gc = true, branch = 'main' } = {}) {
     /**
-     * @type {Array<{ room: string, doc: string, r: number, update: Buffer }>}
+     * @type {Array<{ room: string, doc: string, branch: string, gc: boolean, r: number, update: Buffer }>}
      */
-    const rows = await this.sql`SELECT update,r from yredis_docs_v1 WHERE room = ${room} AND doc = ${docname}`
+    const rows = await this.sql`SELECT update,r from yredis_docs_v2 WHERE room = ${room} AND doc = ${docname} AND branch = ${branch} AND gc = ${gc}`
     if (rows.length === 0) {
       return null
     }
@@ -108,10 +116,13 @@ class PostgresStorage {
   /**
    * @param {string} room
    * @param {string} docname
+   * @param {Object} opts
+   * @param {boolean} [opts.gc]
+   * @param {string} [opts.branch]
    * @return {Promise<Uint8Array|null>}
    */
-  async retrieveStateVector (room, docname) {
-    const rows = await this.sql`SELECT sv from yredis_docs_v1 WHERE room = ${room} AND doc = ${docname} LIMIT 1`
+  async retrieveStateVector (room, docname, { gc = true, branch = 'main' } = {}) {
+    const rows = await this.sql`SELECT sv from yredis_docs_v2 WHERE room = ${room} AND doc = ${docname} AND branch = ${branch} AND gc = ${gc} LIMIT 1`
     if (rows.length > 1) {
       // expect that result is limited
       error.unexpectedCase()
@@ -123,10 +134,13 @@ class PostgresStorage {
    * @param {string} room
    * @param {string} docname
    * @param {Array<any>} storeReferences
+   * @param {Object} opts
+   * @param {boolean} [opts.gc]
+   * @param {string} [opts.branch]
    * @return {Promise<void>}
    */
-  async deleteReferences (room, docname, storeReferences) {
-    await this.sql`DELETE FROM yredis_docs_v1 WHERE room = ${room} AND doc = ${docname} AND r in (${storeReferences})`
+  async deleteReferences (room, docname, storeReferences, { gc = true, branch = 'main' } = {}) {
+    await this.sql`DELETE FROM yredis_docs_v2 WHERE room = ${room} AND doc = ${docname} AND branch = ${branch} AND gc = ${gc} AND r in (${storeReferences})`
   }
 
   async destroy () {

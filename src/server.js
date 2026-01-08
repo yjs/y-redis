@@ -45,9 +45,12 @@ export const createYWebsocketServer = async ({
   checkPermCallbackUrl += checkPermCallbackUrl.slice(-1) !== '/' ? '/' : ''
   const app = uws.App({})
   await registerYWebsocketServer(app, '/:room', store, async (req) => {
-    const room = req.getParameter(0)
+    const room = /** @type {string} */ (req.getParameter(0))
     const headerWsProtocol = req.getHeader('sec-websocket-protocol')
     const [, , token] = /(^|,)yauth-(((?!,).)*)/.exec(headerWsProtocol) ?? [null, null, req.getQuery('yauth')]
+    // Parse gc and branch query parameters BEFORE any await
+    const gc = req.getQuery('gc') !== 'false' // default to true unless explicitly set to 'false'
+    const branch = req.getQuery('branch') || 'main'
     if (token == null) {
       throw new Error('Missing Token')
     }
@@ -59,7 +62,7 @@ export const createYWebsocketServer = async ({
     const permUrl = new URL(`${room}/${userToken.yuserid}`, checkPermCallbackUrl)
     try {
       const perm = await fetch(permUrl).then(req => req.json())
-      return { hasWriteAccess: perm.yaccess === 'rw', room, userid: perm.yuserid || '' }
+      return { hasWriteAccess: perm.yaccess === 'rw', room, userid: perm.yuserid || '', gc, branch }
     } catch (e) {
       console.error('Failed to pull permissions from', { permUrl })
       throw e

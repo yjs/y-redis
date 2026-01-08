@@ -62,20 +62,21 @@ const extractMessagesFromStreamReply = (streamReply, prefix) => {
 /**
  * @param {string} room
  * @param {string} docid
+ * @param {string} branch
  * @param {string} prefix
  */
-export const computeRedisRoomStreamName = (room, docid, prefix) => `${prefix}:room:${encodeURIComponent(room)}:${encodeURIComponent(docid)}`
+export const computeRedisRoomStreamName = (room, docid, branch, prefix) => `${prefix}:room:${encodeURIComponent(room)}:${encodeURIComponent(docid)}:${encodeURIComponent(branch)}`
 
 /**
  * @param {string} rediskey
  * @param {string} expectedPrefix
  */
 const decodeRedisRoomStreamName = (rediskey, expectedPrefix) => {
-  const match = rediskey.match(/^(.*):room:(.*):(.*)$/)
+  const match = rediskey.match(/^(.*):room:(.*):(.*):(.*?)$/)
   if (match == null || match[1] !== expectedPrefix) {
     throw new Error(`Malformed stream name! prefix="${match?.[1]}" expectedPrefix="${expectedPrefix}", rediskey="${rediskey}"`)
   }
-  return { room: decodeURIComponent(match[2]), docid: decodeURIComponent(match[3]) }
+  return { room: decodeURIComponent(match[2]), docid: decodeURIComponent(match[3]), branch: decodeURIComponent(match[4]) }
 }
 
 /**
@@ -194,8 +195,10 @@ export class Api {
    * @param {string} room
    * @param {string} docid
    * @param {Buffer} m
+   * @param {Object} opts
+   * @param {string} [opts.branch]
    */
-  addMessage (room, docid, m) {
+  addMessage (room, docid, m, { branch = 'main' } = {}) {
     // handle sync step 2 like a normal update message
     if (m[0] === protocol.messageSync && m[1] === protocol.messageSyncStep2) {
       if (m.byteLength < 4) {
@@ -204,29 +207,32 @@ export class Api {
       }
       m[1] = protocol.messageSyncUpdate
     }
-    return this.redis.addMessage(computeRedisRoomStreamName(room, docid, this.prefix), m)
+    return this.redis.addMessage(computeRedisRoomStreamName(room, docid, branch, this.prefix), m)
+  }
+
+  /**
+   * @param {string} room
+   * @param {string} docid
+   * @param {Object} opts
+   * @param {boolean} [opts.gc]
+   * @param {string} [opts.branch]
+   */
+  async getStateVector (room, docid = '/', { gc = true, branch = 'main' } = {}) {
+    return this.store.retrieveStateVector(room, docid, { gc, branch })
   }
 
   /**
    * @param {string} room
    * @param {string} docid
    */
-  async getStateVector (room, docid = '/') {
-    return this.store.retrieveStateVector(room, docid)
-  }
-
-  /**
-   * @param {string} room
-   * @param {string} docid
-   */
-  async getDoc (room, docid) {
-    logApi(`getDoc(${room}, ${docid})`)
-    const ms = extractMessagesFromStreamReply(await this.redis.xRead(redis.commandOptions({ returnBuffers: true }), { key: computeRedisRoomStreamName(room, docid, this.prefix), id: '0' }), this.prefix)
-    logApi(`getDoc(${room}, ${docid}) - retrieved messages`)
+  async getDoc (room, docid, { gc = true, branch = 'main' } = {}) {
+    logApi(`getDoc(${room}, ${docid}, gc=${gc}, branch=${branch})`)
+    const ms = extractMessagesFromStreamReply(await this.redis.xRead(redis.commandOptions({ returnBuffers: true }), { key: computeRedisRoomStreamName(room, docid, branch, this.prefix), id: '0' }), this.prefix)
+    logApi(`getDoc(${room}, ${docid}, gc=${gc}, branch=${branch}) - retrieved messages`)
     const docMessages = ms.get(room)?.get(docid) || null
-    const docstate = await this.store.retrieveDoc(room, docid)
-    logApi(`getDoc(${room}, ${docid}) - retrieved doc`)
-    const ydoc = new Y.Doc()
+    const docstate = await this.store.retrieveDoc(room, docid, { gc, branch })
+    logApi(`getDoc(${room}, ${docid}, gc=${gc}, branch=${branch}) - retrieved doc`)
+    const ydoc = new Y.Doc({ gc })
     const awareness = new awarenessProtocol.Awareness(ydoc)
     awareness.setLocalState(null) // we don't want to propagate awareness state
     if (docstate) { Y.applyUpdateV2(ydoc, docstate.doc) }
@@ -282,25 +288,32 @@ export class Api {
           .exec()
         logWorker('Stream still empty, removing recurring task from queue ', { stream: task.stream })
       } else {
-        const { room, docid } = decodeRedisRoomStreamName(task.stream, this.prefix)
+        const { room, docid, branch } = decodeRedisRoomStreamName(task.stream, this.prefix)
         // @todo, make sure that awareness by this.getDoc is eventually destroyed, or doesn't
         // register a timeout anymore
         logWorker('requesting doc from store')
-        const { ydoc, storeReferences, redisLastId, docChanged } = await this.getDoc(room, docid)
-        logWorker('retrieved doc from store. redisLastId=' + redisLastId, ' storeRefs=' + JSON.stringify(storeReferences))
-        const lastId = math.max(number.parseInt(redisLastId.split('-')[0]), number.parseInt(task.id.split('-')[0]))
-        if (docChanged) {
+        // Persist both gc'd and non-gc'd versions
+        const gcResult = await this.getDoc(room, docid, { gc: true, branch })
+        const nonGcResult = await this.getDoc(room, docid, { gc: false, branch })
+        logWorker('retrieved doc from store. redisLastId=' + gcResult.redisLastId, ' gcRefs=' + JSON.stringify(gcResult.storeReferences), ' nonGcRefs=' + JSON.stringify(nonGcResult.storeReferences))
+        const lastId = math.max(number.parseInt(gcResult.redisLastId.split('-')[0]), number.parseInt(task.id.split('-')[0]))
+        if (gcResult.docChanged || nonGcResult.docChanged) {
           try {
             logWorker('doc changed, calling update callback')
-            await updateCallback(room, ydoc)
+            // Use gc'd version for callback
+            await updateCallback(room, gcResult.ydoc)
           } catch (e) {
             console.error(e)
           }
-          logWorker('persisting doc')
-          await this.store.persistDoc(room, docid, ydoc)
+          logWorker('persisting both gc and non-gc versions')
+          await promise.all([
+            gcResult.docChanged ? this.store.persistDoc(room, docid, gcResult.ydoc, { gc: true, branch }) : promise.resolve(),
+            nonGcResult.docChanged ? this.store.persistDoc(room, docid, nonGcResult.ydoc, { gc: false, branch }) : promise.resolve()
+          ])
         }
         await promise.all([
-          storeReferences && docChanged ? this.store.deleteReferences(room, docid, storeReferences) : promise.resolve(),
+          gcResult.storeReferences && gcResult.docChanged ? this.store.deleteReferences(room, docid, gcResult.storeReferences, { gc: true, branch }) : promise.resolve(),
+          nonGcResult.storeReferences && nonGcResult.docChanged ? this.store.deleteReferences(room, docid, nonGcResult.storeReferences, { gc: false, branch }) : promise.resolve(),
           // if `redisTaskDebounce` is small, or if updateCallback taskes too long, then we might
           // add a task twice to this list.
           // @todo either use a different datastructure or make sure that task doesn't exist yet

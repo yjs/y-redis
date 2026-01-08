@@ -34,18 +34,21 @@ export const createS3Storage = (bucketName) => {
 /**
  * @param {string} room
  * @param {string} docid
+ * @param {string} [branch]
+ * @param {boolean} [gc]
+ * @param {string} [r]
  */
-export const encodeS3ObjectName = (room, docid, r = random.uuidv4()) => `${encodeURIComponent(room)}/${encodeURIComponent(docid)}/${r}`
+export const encodeS3ObjectName = (room, docid, branch = 'main', gc = true, r = random.uuidv4()) => `${encodeURIComponent(room)}/${encodeURIComponent(docid)}/${branch}/${gc}/${r}`
 
 /**
  * @param {string} objectName
  */
 export const decodeS3ObjectName = objectName => {
-  const match = objectName.match(/(.*)\/(.*)\/(.*)$/)
+  const match = objectName.match(/(.*)\/(.*)\/(.*)\/(.*)\/(.*)$/)
   if (match == null) {
-    throw new Error('Malformed y:room stream name!')
+    throw new Error('Malformed y:room S3 object name')
   }
-  return { room: decodeURIComponent(match[1]), docid: decodeURIComponent(match[2]), r: match[3] }
+  return { room: decodeURIComponent(match[1]), docid: decodeURIComponent(match[2]), branch: match[3], gc: match[4] === 'true', r: match[5] }
 }
 
 /**
@@ -94,39 +97,49 @@ export class S3Storage {
    * @param {string} room
    * @param {string} docname
    * @param {Y.Doc} ydoc
+   * @param {Object} opts
+   * @param {boolean} [opts.gc]
+   * @param {string} [opts.branch]
    * @returns {Promise<void>}
    */
-  async persistDoc (room, docname, ydoc) {
-    const objectName = encodeS3ObjectName(room, docname)
+  async persistDoc (room, docname, ydoc, { gc = true, branch = 'main' } = {}) {
+    const objectName = encodeS3ObjectName(room, docname, branch, gc)
     await this.client.putObject(this.bucketName, objectName, Buffer.from(Y.encodeStateAsUpdateV2(ydoc)))
   }
 
   /**
    * @param {string} room
    * @param {string} docname
+   * @param {Object} opts
+   * @param {boolean} [opts.gc]
+   * @param {string} [opts.branch]
    * @return {Promise<{ doc: Uint8Array, references: Array<string> } | null>}
    */
-  async retrieveDoc (room, docname) {
-    log('retrieving doc room=' + room + ' docname=' + docname)
-    const objNames = await this.client.listObjectsV2(this.bucketName, encodeS3ObjectName(room, docname, ''), true).toArray()
+  async retrieveDoc (room, docname, { gc = true, branch = 'main' } = {}) {
+    log('retrieving doc room=' + room + ' docname=' + docname + ' branch=' + branch + ' gc=' + gc)
+    const prefix = `${encodeURIComponent(room)}/${encodeURIComponent(docname)}/${branch}/${gc}/`
+    const objNames = await this.client.listObjectsV2(this.bucketName, prefix, true).toArray()
     const references = objNames.map(obj => obj.name)
-    log('retrieved doc room=' + room + ' docname=' + docname + ' refs=' + JSON.stringify(references))
+    log('retrieved doc room=' + room + ' docname=' + docname + ' branch=' + branch + ' gc=' + gc + ' refs=' + JSON.stringify(references))
     if (references.length === 0) {
       return null
     }
     let updates = await promise.all(references.map(ref => this.client.getObject(this.bucketName, ref).then(readStream)))
     updates = updates.filter(update => update != null)
-    log('retrieved doc room=' + room + ' docname=' + docname + ' updatesLen=' + updates.length)
+    log('retrieved doc room=' + room + ' docname=' + docname + ' branch=' + branch + ' gc=' + gc + ' updatesLen=' + updates.length)
     return { doc: Y.mergeUpdatesV2(updates), references }
   }
 
   /**
    * @param {string} room
    * @param {string} docname
+   * @param {Object} opts
+   * @param {boolean} [opts.gc]
+   * @param {string} [opts.branch]
    * @return {Promise<Uint8Array|null>}
    */
-  async retrieveStateVector (room, docname) {
-    const r = await this.retrieveDoc(room, docname)
+  async retrieveStateVector (room, docname, { gc = true, branch = 'main' } = {}) {
+    const r = await this.retrieveDoc(room, docname, { gc, branch })
     return r ? Y.encodeStateVectorFromUpdateV2(r.doc) : null
   }
 
@@ -134,9 +147,13 @@ export class S3Storage {
    * @param {string} _room
    * @param {string} _docname
    * @param {Array<string>} storeReferences
+   * @param {Object} _opts
+   * @param {boolean} [_opts.gc]
+   * @param {string} [_opts.branch]
    * @return {Promise<void>}
    */
-  async deleteReferences (_room, _docname, storeReferences) {
+  async deleteReferences (_room, _docname, storeReferences, _opts) {
+    // For S3, references are full object paths that already include gc/branch info
     await this.client.removeObjects(this.bucketName, storeReferences)
   }
 

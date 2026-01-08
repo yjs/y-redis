@@ -48,10 +48,14 @@ class User {
    * @param {string} room
    * @param {boolean} hasWriteAccess
    * @param {string} userid identifies the user globally.
+   * @param {boolean} gc
+   * @param {string} branch
    */
-  constructor (room, hasWriteAccess, userid) {
+  constructor (room, hasWriteAccess, userid, gc, branch) {
     this.room = room
     this.hasWriteAccess = hasWriteAccess
+    this.gc = gc
+    this.branch = branch
     /**
      * @type {string}
      */
@@ -80,7 +84,7 @@ class User {
  * @param {uws.TemplatedApp} app
  * @param {uws.RecognizedString} pattern
  * @param {import('./storage.js').AbstractStorage} store
- * @param {function(uws.HttpRequest): Promise<{ hasWriteAccess: boolean, room: string, userid: string }>} checkAuth
+ * @param {function(uws.HttpRequest): Promise<{ hasWriteAccess: boolean, room: string, userid: string, gc: boolean, branch: string }>} checkAuth
  * @param {Object} conf
  * @param {string} [conf.redisPrefix]
  * @param {(room:string,docname:string,client:api.Api)=>void} [conf.initDocCallback] - this is called when a doc is
@@ -123,11 +127,11 @@ export const registerYWebsocketServer = async (app, pattern, store, checkAuth, {
         aborted = true
       })
       try {
-        const { hasWriteAccess, room, userid } = await checkAuth(req)
+        const { hasWriteAccess, room, userid, gc, branch } = await checkAuth(req)
         if (aborted) return
         res.cork(() => {
           res.upgrade(
-            new User(room, hasWriteAccess, userid),
+            new User(room, hasWriteAccess, userid, gc, branch),
             headerWsKey,
             headerWsProtocol,
             headerWsExtensions,
@@ -145,11 +149,11 @@ export const registerYWebsocketServer = async (app, pattern, store, checkAuth, {
     open: async (ws) => {
       const user = ws.getUserData()
       log(() => ['client connected (uid=', user.id, ', ip=', Buffer.from(ws.getRemoteAddressAsText()).toString(), ')'])
-      const stream = api.computeRedisRoomStreamName(user.room, 'index', redisPrefix)
+      const stream = api.computeRedisRoomStreamName(user.room, 'index', user.branch, redisPrefix)
       user.subs.add(stream)
       ws.subscribe(stream)
       user.initialRedisSubId = subscriber.subscribe(stream, redisMessageSubscriber).redisId
-      const indexDoc = await client.getDoc(user.room, 'index')
+      const indexDoc = await client.getDoc(user.room, 'index', { gc: user.gc, branch: user.branch })
       if (indexDoc.ydoc.store.clients.size === 0) {
         initDocCallback(user.room, 'index', client)
       }
@@ -190,7 +194,7 @@ export const registerYWebsocketServer = async (app, pattern, store, checkAuth, {
             user.awarenessLastClock = decoding.readVarUint(decoder)
           }
         }
-        client.addMessage(user.room, 'index', message)
+        client.addMessage(user.room, 'index', message, { branch: user.branch })
       } else if (message[0] === protocol.messageSync && message[1] === protocol.messageSyncStep1) { // sync step 1
         // can be safely ignored because we send the full initial state at the beginning
       } else {
@@ -199,7 +203,7 @@ export const registerYWebsocketServer = async (app, pattern, store, checkAuth, {
     },
     close: (ws, code, message) => {
       const user = ws.getUserData()
-      user.awarenessId && client.addMessage(user.room, 'index', Buffer.from(protocol.encodeAwarenessUserDisconnected(user.awarenessId, user.awarenessLastClock)))
+      user.awarenessId && client.addMessage(user.room, 'index', Buffer.from(protocol.encodeAwarenessUserDisconnected(user.awarenessId, user.awarenessLastClock)), { branch: user.branch })
       user.isClosed = true
       log(() => ['client connection closed (uid=', user.id, ', code=', code, ', message="', Buffer.from(message).toString(), '")'])
       user.subs.forEach(topic => {

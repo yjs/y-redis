@@ -29,7 +29,7 @@ export class MemoryStorage {
    */
   constructor (_opts) {
     /**
-     * path := room.docid.referenceid
+     * path := room.compositeKey.referenceid where compositeKey = docid/branch/gc
      * @type {Map<string, Map<string, Map<string, Uint8Array>>>}
      */
     this.docs = new Map()
@@ -39,12 +39,16 @@ export class MemoryStorage {
    * @param {string} room
    * @param {string} docname
    * @param {Y.Doc} ydoc
+   * @param {Object} opts
+   * @param {boolean} [opts.gc]
+   * @param {string} [opts.branch]
    * @returns {Promise<void>}
    */
-  persistDoc (room, docname, ydoc) {
+  persistDoc (room, docname, ydoc, { gc = true, branch = 'main' } = {}) {
+    const compositeKey = `${docname}/${branch}/${gc}`
     map.setIfUndefined(
       map.setIfUndefined(this.docs, room, map.create),
-      docname,
+      compositeKey,
       map.create
     ).set(random.uuidv4(), Y.encodeStateAsUpdateV2(ydoc))
     return promise.resolve()
@@ -53,10 +57,14 @@ export class MemoryStorage {
   /**
    * @param {string} room
    * @param {string} docname
+   * @param {Object} opts
+   * @param {boolean} [opts.gc]
+   * @param {string} [opts.branch]
    * @return {Promise<{ doc: Uint8Array, references: Array<string> } | null>}
    */
-  async retrieveDoc (room, docname) {
-    const refs = this.docs.get(room)?.get(docname)
+  async retrieveDoc (room, docname, { gc = true, branch = 'main' } = {}) {
+    const compositeKey = `${docname}/${branch}/${gc}`
+    const refs = this.docs.get(room)?.get(compositeKey)
     return promise.resolveWith((refs == null || refs.size === 0) ? null : { doc: Y.mergeUpdatesV2(array.from(refs.values())), references: array.from(refs.keys()) })
   }
 
@@ -66,10 +74,13 @@ export class MemoryStorage {
    *
    * @param {string} room
    * @param {string} docname
+   * @param {Object} opts
+   * @param {boolean} [opts.gc]
+   * @param {string} [opts.branch]
    * @return {Promise<Uint8Array|null>}
    */
-  async retrieveStateVector (room, docname) {
-    const r = await this.retrieveDoc(room, docname)
+  async retrieveStateVector (room, docname, { gc = true, branch = 'main' } = {}) {
+    const r = await this.retrieveDoc(room, docname, { gc, branch })
     return r ? Y.encodeStateVectorFromUpdateV2(r.doc) : null
   }
 
@@ -77,11 +88,15 @@ export class MemoryStorage {
    * @param {string} room
    * @param {string} docname
    * @param {Array<string>} storeReferences
+   * @param {Object} opts
+   * @param {boolean} [opts.gc]
+   * @param {string} [opts.branch]
    * @return {Promise<void>}
    */
-  deleteReferences (room, docname, storeReferences) {
+  deleteReferences (room, docname, storeReferences, { gc = true, branch = 'main' } = {}) {
+    const compositeKey = `${docname}/${branch}/${gc}`
     storeReferences.forEach(r => {
-      this.docs.get(room)?.get(docname)?.delete(r)
+      this.docs.get(room)?.get(compositeKey)?.delete(r)
     })
     return promise.resolve()
   }
