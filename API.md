@@ -39,6 +39,7 @@ websockets.
     version of the document.
 * Rollback all changes from user-id `U` that happened between timestamp `X` and `Y`: `POST /rollback/{doc-guid}?by=U&from=X&to=Y`
   * This call enables you to undo all changes within a certain editing-interval.
+* Rollback all changes of a certain user between two versions: `POST /rollback/{guid}` body: `{ by: userid, iddiff: Y.IdDiff(prevYDoc, nextYDoc) }`
 
 ## History
 
