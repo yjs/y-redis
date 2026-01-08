@@ -44,12 +44,19 @@ websockets.
 Visualize attributed changes using either pure deltas or by retrieving the
 before and after state of a Yjs doc. Optionally, include relevant attributions.
 
-* `GET /history/{guid}` parameters: `{ from?: number, to?: number, doc?: boolean, diff?: boolean, attributions?: boolean }`
+* `GET /history/{guid}` parameters: `{ from?: number, to?: number, ydoc?: boolean, delta?: boolean, attributions?: boolean }`
   * `from`/`to`: unix timestamp range filter
-  * `doc=true`: include encoded Yjs docs
-  * `diff=true`: include delta diff
+  * `ydoc=true`: include encoded Yjs docs
+  * `delta=true`: include delta representation
   * `attributions=true`: include attributions
-  * Returns `{ prevDoc?: Y.Doc, nextDoc?: Y.Doc, attributions: Y.IdMap, state?: Delta, diff?: Delta }`
+  * Returns `{ prevDoc?: Y.Doc, nextDoc?: Y.Doc, attributions?: Y.IdMap, deltaState?: Delta, deltaDiff?: Delta }`
+
+### Example: visualize editing trail of the past day
+
+* Retrieve timestamps `GET /timestamps/{guid}?from={now-1day}`
+* Optionally, bundle changes that belong to each other: `[1, 2, 70, 71] ⇒ [2, 71]` - because `1,2` and `70,71` belong to each other.
+* For each timestamp: `GET /history/{guid}?from=timestamps[I - 1]&to=timestamps[I]&delta=true&attributions=true`
+* Which will give you the state of the document at timestamp `from`: `deltaState` and the (attributed) diff that is needed to get to timestamp `to`: `diff`.
 
 ## Timestamps
 
