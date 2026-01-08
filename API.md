@@ -1,6 +1,6 @@
-# Y-Hub API Documentation
+# Y/hub API Documentation
 
-Y-Hub is a collaborative document backend built on Yjs. It implements the standard y-websocket protocol and extends it with attribution, history management, and selective undo/redo capabilities.
+Y/hub is a collaborative document backend built on Yjs. It implements the standard y-websocket protocol and extends it with attribution, history management, and selective undo/redo capabilities.
 
 All endpoints require an `auth-cookie` which will be check via the PERM
 CALLBACK.
