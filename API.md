@@ -27,9 +27,10 @@ version as well.
 Rollback all changes that match the pattern. The changes will be distributed via
 websockets.
 
-* `POST /rollback/{guid}` parameters: `{ from?: number, to?: number, by?: string }`
+* `POST /rollback/{guid}` parameters: `{ from?: number, to?: number, by?: string, iddiff: { inserts: Y.IdSet, deletes: Y.IdSet } }`
   * `from`/`to`: unix timestamp range filter
   * `by=string`: comma-separated list of user-ids that matches the attributions
+  * `iddiff`: Changeset that describes the changes between two versions. **TODO** expose Yjs function to compute iddiff between two Y.Docs.
 
 ### Example
 
