@@ -1,12 +1,15 @@
 # Y-Hub API Documentation
 
-Y-Hub is a collaborative document backend built on Yjs. It implements the standard y-websocket protocol and extends it with attribution, versioning, and selective undo/redo capabilities.
+Y-Hub is a collaborative document backend built on Yjs. It implements the standard y-websocket protocol and extends it with attribution, history management, and selective undo/redo capabilities.
 
-Most endpoints require an `auth-cookie`.
+All endpoints require an `auth-cookie` which will be check via the PERM
+CALLBACK.
+
+It is assumed that all documents can be identified by a unique `{guid}`.
 
 ## WebSocket
 
-The standard WebSocket backend that is compatible with y-websockets, and TipTapProvider.
+The standard WebSocket backend that is compatible with y-websocket, and TipTapProvider.
 
 For each Yjs document, there is always a gc'd version, and a non-gc'd version.
 Optionally, you may fork the document to a branch, which users can use for
@@ -24,9 +27,9 @@ version as well.
 Rollback all changes that match the pattern. The changes will be distributed via
 websockets.
 
-* `POST /rollback/{doc-guid}` parameters: `{ from?: number, to?: number, by?: string }`
+* `POST /rollback/{guid}` parameters: `{ from?: number, to?: number, by?: string }`
   * `from`/`to`: unix timestamp range filter
-  - `by=string`: comma-separated list of user-ids that matches the attributions
+  * `by=string`: comma-separated list of user-ids that matches the attributions
 
 ### Example
 
@@ -62,6 +65,6 @@ the timestamps API and the history API to reconstruct an editing trail.
 Webhooks are configured using environment variables.
 
 * `YDOC_UPDATE_CALLBACK=http://localhost:5173/ydoc` body: `encoded ydoc` - Called whenever the Yjs document was updated (after a debounce)
-* `YDOC_CHANGE_CALLBACK=http://localhost:5173/ydoc` body: `{ ydoc: encoded ydoc, delta: delta describing all changes }` - Called whenever the Yjs document was updated (after a debounce). 
+* `YDOC_CHANGE_CALLBACK=http://localhost:5173/ydoc` body: `{ ydoc: v2 encoded ydoc, delta: delta describing all changes }` - Called whenever the Yjs document was updated (after a debounce). 
 * `AUTH_PERM_CALLBACK=http://localhost:5173/auth/perm` - Called to check Authentication of a client.
 
