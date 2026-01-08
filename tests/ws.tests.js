@@ -20,11 +20,14 @@ const authToken = await jwt.encodeJwt(utils.authPrivateKey, {
 /**
  * @param {t.TestCase} tc
  * @param {string} room
+ * @param {object} params
+ * @param {string} [params.branch]
+ * @param {boolean} [params.gc]
  */
-const createWsClient = (tc, room) => {
-  const ydoc = new Y.Doc()
+const createWsClient = (tc, room, { branch = 'main', gc = true } = {}) => {
+  const ydoc = new Y.Doc({ gc })
   const roomPrefix = tc.testName
-  const provider = new WebsocketProvider(utils.yredisUrl, roomPrefix + '-' + room, ydoc, { WebSocketPolyfill: /** @type {any} */ (WebSocket), disableBc: true, params: {}, protocols: [`yauth-${authToken}`] })
+  const provider = new WebsocketProvider(utils.yredisUrl, roomPrefix + '-' + room, ydoc, { WebSocketPolyfill: /** @type {any} */ (WebSocket), disableBc: true, params: { branch, gc: gc.toString() }, protocols: [`yauth-${authToken}`] })
   return { ydoc, provider }
 }
 
@@ -67,7 +70,13 @@ const createTestCase = async tc => {
     apiClient,
     server,
     worker,
-    createWsClient: /** @param {string} room */ (room) => createWsClient(tc, room)
+    /**
+     * @param {string} docid
+     * @param {object} [opts]
+     * @param {string} [opts.branch]
+     * @param {boolean} [opts.gc]
+     */
+    createWsClient: (docid, opts) => createWsClient(tc, docid, opts)
   }
 }
 
@@ -77,13 +86,13 @@ const createTestCase = async tc => {
  */
 const waitDocsSynced = (ydoc1, ydoc2) => {
   console.info('waiting for docs to sync...')
-  return promise.until(0, () => {
+  return promise.until(500, () => {
     const e1 = Y.encodeStateAsUpdateV2(ydoc1)
     const e2 = Y.encodeStateAsUpdateV2(ydoc2)
     const isSynced = array.equalFlat(e1, e2)
     isSynced && console.info('docs sycned!')
     return isSynced
-  })
+  }).catch(err => promise.resolve())
 }
 
 /**
@@ -128,4 +137,21 @@ export const testSyncAndCleanup = async tc => {
   // should delete old references
   t.assert(memRetrieved2?.references.length === 1)
   await promise.all(utils.prevClients.reverse().map(c => c.destroy()))
+}
+
+/**
+ * @param {t.TestCase} tc
+ */
+export const testGcNonGcDocs = async tc => {
+  const { createWsClient } = await createTestCase(tc)
+  const {ydoc: ydocGc } = createWsClient('gctest')
+  ydocGc.getMap().set('a', 1)
+  await promise.wait(500)
+  ydocGc.getMap().set('a', 2)
+  await promise.wait(100)
+  const {ydoc: ydocNoGc } = createWsClient('gctest', { gc: false })
+  await waitDocsSynced(ydocGc, ydocNoGc)
+  t.assert(ydocNoGc.getMap().get('a') === 2)
+  // check that content was not gc'd
+  t.assert(ydocNoGc.getMap()._map.get('a')?.left?.content.getContent()[0] === 1)
 }
