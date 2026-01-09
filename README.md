@@ -1,17 +1,16 @@
-
-# y-redis :tophat: 
+# y/hub :tophat: 
 > y-websocket compatible backend using Redis for scalability. **This is beta
 > software!**
 
-y-redis is an alternative backend for y-websocket. It only requires a redis
+y/hub is an alternative backend for y-websocket. It only requires a redis
 instance and a storage provider (S3 or Postgres-compatible). 
 
 * **Memory efficient:** The server doesn't maintain a Y.Doc in-memory. It
 streams updates through redis. The Yjs document is only loaded to memory for the
 initial sync. 
-* **Scalable:** You can start as many y-redis instances as you want to handle
+* **Scalable:** You can start as many y/hub instances as you want to handle
 a fluctuating number of clients. No coordination is needed.
-- **Auth:** y-redis works together with your existing infrastructure to
+- **Auth:** y/hub works together with your existing infrastructure to
 authenticate clients and check whether a client has read-only / read-write
 access to a document.
 - **Database agnostic:** You can persist documents in S3-compatible backends, in
@@ -19,9 +18,9 @@ Postgres, or implement your own storage provider.
 
 ### Licensing
 
-y-redis is dual-licensed (either [AGPL](./LICENSE) or proprietary).
+y/hub is dual-licensed (either [AGPL](./LICENSE) or proprietary).
 
-Please contact me to buy a license if you intend to use y-redis in your
+Please contact me to buy a license if you intend to use y/hub in your
 commercial product: <kevin.jahns at pm.me>
 
 Otherwise, you may use this software under the terms of the AGPL, which requires
@@ -40,7 +39,7 @@ permanently. You can configure in which intervals you want to persist data from
 redis to the persistent storage. You can even implement a custom persistent
 storage technology.
 
-The y-redis **server component** (`/bin/server.js`) is responsible for accepting
+The y/hub **server component** (`/bin/server.js`) is responsible for accepting
 websocket-connections and distributing the updates via redis streams. Each
 "room" is represented as a redis stream. The server component assembles updates
 stored redis and in the persistent storage (e.g. S3 or Postgres) for the initial
@@ -49,7 +48,7 @@ You can start as many server components as you need. It makes sense to put the
 server component behind a loadbalancer, which can potentially auto-scale the
 server component based on CPU or network usage. 
 
-The separate y-redis **worker component** (`/bin/worker.js`) is responsible for
+The separate y/hub **worker component** (`/bin/worker.js`) is responsible for
 extracting data from the redis cache to a persistent database like S3 or
 Postgres. Once the data is persisted, the worker component cleans up stale data
 in redis. You can start as many worker components as you need. It is recommended
@@ -57,7 +56,7 @@ to run at least one worker, so that the data is eventually persisted. The worker
 components coordinate which room needs to be persisted using a separate
 worker-queue (see `y:worker` stream in redis).
 
-You are responsible for providing a REST backend that y-redis will call to check
+You are responsible for providing a REST backend that y/hub will call to check
 whether a specific client (authenticated via a JWT token) has access to a
 specific room / document. Example servers can be found in
 `/bin/auth-server-example.js` and `/demos/auth-express/server.js`.
@@ -67,7 +66,7 @@ specific room / document. Example servers can be found in
 I'm looking for sponsors that want to sponsor the following work:
 
 - Ability to kick out users when permissions on a document changed
-- Configurable docker containers for y-redis server & worker
+- Configurable docker containers for y/hub server & worker
 - Helm chart
 - More exhaustive logging and reporting of possible issues
 - More exhaustive testing
@@ -86,8 +85,8 @@ following components:
 
 - redis
 - minio as a s3 endpoint
-- a single y-redis server
-- a single y-redis worker
+- a single y/hub server
+- a single y/hub worker
 
 This can be a good starting point for your application. If your cloud provider
 has a managed s3 service, you should probably use that instead of minio. If you
@@ -96,8 +95,8 @@ want to use minio, you need to setup proper volumes and backups.
 The full setup gives insight into more specialized configuration options.
 
 ```sh
-git clone https://github.com/yjs/y-redis.git
-cd y-redis
+git clone https://github.com/yjs/yhub.git
+cd yhub
 npm i
 ```
 
@@ -123,7 +122,7 @@ docker compose up
 # Full setup
 
 Components are configured via environment variables. It makes sense to start by
-cloning y-redis and getting one of the demos to work.
+cloning y/hub and getting one of the demos to work.
 
 Note: If you want to use any of the docker commands, feel free to use podman (a
 more modern alternative) instead.
@@ -159,8 +158,8 @@ run it in production.
 #### Clone demo
 
 ```sh
-git clone https://github.com/yjs/y-redis.git
-cd y-redis
+git clone https://github.com/yjs/yhub.git
+cd yhub
 npm i
 ```
 
