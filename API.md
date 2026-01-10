@@ -27,10 +27,10 @@ version as well.
 Rollback all changes that match the pattern. The changes will be distributed via
 websockets.
 
-* `POST /rollback/{guid}` parameters: `{ from?: number, to?: number, by?: string, iddiff: { inserts: Y.IdSet, deletes: Y.IdSet } }`
+* `POST /rollback/{guid}` body: `{ from?: number, to?: number, by?: string, contentIds: { inserts: Y.IdSet, deletes: Y.IdSet } }`
   * `from`/`to`: unix timestamp range filter
   * `by=string`: comma-separated list of user-ids that matches the attributions
-  * `iddiff`: Changeset that describes the changes between two versions. **TODO** expose Yjs function to compute iddiff between two Y.Docs.
+  * `contentIds`: Changeset that describes the changes between two versions. **TODO** expose Yjs function to compute contentIds between two Y.Docs.
 
 ### Example
 
@@ -39,7 +39,7 @@ websockets.
     version of the document.
 * Rollback all changes from user-id `U` that happened between timestamp `X` and `Y`: `POST /rollback/{doc-guid}?by=U&from=X&to=Y`
   * This call enables you to undo all changes within a certain editing-interval.
-* Rollback all changes of a certain user between two versions: `POST /rollback/{guid}` body: `{ by: userid, iddiff: Y.IdDiff(prevYDoc, nextYDoc) }`
+* Rollback all changes of a certain user between two versions: `POST /rollback/{guid}` body: `{ by: userid, contentIds: Y.ContentIds(prevYDoc, nextYDoc) }`
 
 ## History
 
